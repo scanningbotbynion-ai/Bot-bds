@@ -312,7 +312,6 @@ function Login() {
             <label htmlFor="payment-review-consent">
               I want to start bot
             </label>
-            <Link href="/terms">条款与风险披露</Link>
           </div>
         </div>
         {formError && <p className="payment-feedback error" role="alert">{formError}</p>}
