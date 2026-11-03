@@ -321,7 +321,7 @@ function Login() {
           />
           <div>
             <label htmlFor="payment-review-consent">
-              I agree to send my email, Payment ID, and app-issued PIN to authorized Telegram admins for review, as explained in Terms &amp; Risk Disclosure.
+              I agree to do this
             </label>
           </div>
         </div>
