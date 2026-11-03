@@ -1,0 +1,96 @@
+const KEY_PATTERN = /^[A-Za-z0-9]{4,32}$/;
+
+export type TelegramUpdate = {
+  update_id: number;
+  message?: {
+    text?: string;
+    from?: { id?: number };
+    chat?: { id?: number };
+  };
+};
+
+export type TelegramKeyState = {
+  key: string;
+  updateOffset: number;
+};
+
+export type TelegramUpdateResult = TelegramKeyState & {
+  reply?: { chatId: number; text: string };
+  shouldCommit: boolean;
+};
+
+export function parseAdminIds(value: string | undefined): Set<string> {
+  return new Set(
+    (value ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => /^\d+$/.test(id)),
+  );
+}
+
+function commandReply(
+  text: string | undefined,
+  currentKey: string,
+  generateKey: () => string,
+): { reply: string; newKey?: string } {
+  const [rawCommand = "", ...parts] = (text ?? "").trim().split(/\s+/);
+  const command = rawCommand.split("@")[0].toLowerCase();
+  const argument = parts.join(" ").trim();
+
+  if (command === "/key") {
+    return { reply: `Current key: ${currentKey}` };
+  }
+  if (command === "/newkey") {
+    const newKey = generateKey();
+    return { reply: `New key: ${newKey}`, newKey };
+  }
+  if (command === "/setkey") {
+    if (!KEY_PATTERN.test(argument)) {
+      return {
+        reply: "Usage: /setkey NEWKEY  (4-32 letters or numbers)",
+      };
+    }
+    const newKey = argument.toUpperCase();
+    return { reply: `Key changed to: ${newKey}`, newKey };
+  }
+
+  return { reply: "Commands: /key, /newkey, /setkey NEWKEY" };
+}
+
+export function applyTelegramUpdate(
+  update: TelegramUpdate,
+  state: TelegramKeyState,
+  adminIds: ReadonlySet<string>,
+  generateKey: () => string,
+): TelegramUpdateResult {
+  if (update.update_id < state.updateOffset) {
+    return { ...state, shouldCommit: false };
+  }
+
+  const message = update.message;
+  const senderId = message?.from?.id;
+  const chatId = message?.chat?.id;
+  let key = state.key;
+  let reply: TelegramUpdateResult["reply"];
+
+  if (senderId !== undefined) {
+    const parsedCommand = commandReply(message?.text, state.key, generateKey);
+    if (!adminIds.has(String(senderId))) {
+      if (chatId !== undefined) {
+        reply = { chatId, text: "Not authorized." };
+      }
+    } else {
+      key = parsedCommand.newKey ?? state.key;
+      if (chatId !== undefined) {
+        reply = { chatId, text: parsedCommand.reply };
+      }
+    }
+  }
+
+  return {
+    key,
+    updateOffset: update.update_id + 1,
+    ...(reply && chatId !== undefined ? { reply } : {}),
+    shouldCommit: true,
+  };
+}

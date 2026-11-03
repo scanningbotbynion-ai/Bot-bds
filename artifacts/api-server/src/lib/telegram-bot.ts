@@ -3,26 +3,14 @@ import { and, eq } from "drizzle-orm";
 import { db, accessKeyState } from "@workspace/db";
 import { logger } from "./logger";
 import { generateAccessKey } from "./access-key";
+import {
+  applyTelegramUpdate,
+  parseAdminIds,
+  type TelegramUpdate,
+} from "./telegram-update";
 
 const connectors = new ReplitConnectors();
-const KEY_PATTERN = /^[A-Za-z0-9]{4,32}$/;
-const ADMIN_IDS = new Set(
-  (process.env.ADMIN_IDS ?? "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter((value) => /^\d+$/.test(value)),
-);
-
-type TelegramMessage = {
-  text?: string;
-  from?: { id?: number };
-  chat?: { id?: number };
-};
-
-type TelegramUpdate = {
-  update_id: number;
-  message?: TelegramMessage;
-};
+const ADMIN_IDS = parseAdminIds(process.env.ADMIN_IDS);
 
 type TelegramResponse<T> = {
   ok: boolean;
@@ -54,41 +42,8 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function commandReply(text: string | undefined, currentKey: string): {
-  reply: string;
-  newKey?: string;
-} | null {
-  const [rawCommand = "", ...parts] = (text ?? "").trim().split(/\s+/);
-  const command = rawCommand.split("@")[0].toLowerCase();
-  const argument = parts.join(" ").trim();
-
-  if (command === "/key") {
-    return { reply: `Current key: ${currentKey}` };
-  }
-  if (command === "/newkey") {
-    const newKey = generateAccessKey();
-    return { reply: `New key: ${newKey}`, newKey };
-  }
-  if (command === "/setkey") {
-    if (!KEY_PATTERN.test(argument)) {
-      return {
-        reply: "Usage: /setkey NEWKEY  (4-32 letters or numbers)",
-      };
-    }
-    const newKey = argument.toUpperCase();
-    return { reply: `Key changed to: ${newKey}`, newKey };
-  }
-
-  return { reply: "Commands: /key, /newkey, /setkey NEWKEY" };
-}
-
 async function processUpdate(update: TelegramUpdate): Promise<void> {
-  const message = update.message;
-  const senderId = message?.from?.id;
-  const chatId = message?.chat?.id;
-  let reply: string | undefined;
-  let expectedOffset = update.update_id;
-
+  let reply: { chatId: number; text: string } | undefined;
   await db.transaction(async (tx) => {
     const [state] = await tx
       .select()
@@ -100,34 +55,29 @@ async function processUpdate(update: TelegramUpdate): Promise<void> {
       throw new Error("Access-key state is missing from the database.");
     }
 
-    expectedOffset = state.updateOffset;
-    if (update.update_id < state.updateOffset) {
+    const updateResult = applyTelegramUpdate(
+      update,
+      state,
+      ADMIN_IDS,
+      generateAccessKey,
+    );
+    if (!updateResult.shouldCommit) {
       return;
     }
 
-    const parsedCommand = commandReply(message?.text, state.key);
-    let nextKey = state.key;
-
-    if (parsedCommand && senderId !== undefined) {
-      if (!ADMIN_IDS.has(String(senderId))) {
-        reply = "Not authorized.";
-      } else {
-        reply = parsedCommand.reply;
-        nextKey = parsedCommand.newKey ?? state.key;
-      }
-    }
+    reply = updateResult.reply;
 
     const result = await tx
       .update(accessKeyState)
       .set({
-        key: nextKey,
-        updateOffset: update.update_id + 1,
+        key: updateResult.key,
+        updateOffset: updateResult.updateOffset,
         updatedAt: new Date(),
       })
       .where(
         and(
           eq(accessKeyState.id, 1),
-          eq(accessKeyState.updateOffset, expectedOffset),
+          eq(accessKeyState.updateOffset, state.updateOffset),
         ),
       )
       .returning({ id: accessKeyState.id });
@@ -137,8 +87,8 @@ async function processUpdate(update: TelegramUpdate): Promise<void> {
     }
   });
 
-  if (reply && chatId !== undefined) {
-    await telegram("sendMessage", { chat_id: chatId, text: reply });
+  if (reply) {
+    await telegram("sendMessage", { chat_id: reply.chatId, text: reply.text });
   }
 }
 
