@@ -1,15 +1,20 @@
-# [Project name]
+# Chinese Auto Bot Access Key API
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A Replit-hosted API that verifies access keys and lets approved Telegram admins view or rotate the current key.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server through its managed workflow
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/db run push` — apply schema changes to the development database
+- `POST /api/verify-key` — accepts `{"key":"..."}` and returns `{"ok":true|false}`
+- Telegram admin commands: `/key`, `/newkey`, `/setkey NEWKEY`
+- Required shared environment variable: `ADMIN_IDS` — comma-separated numeric Telegram user IDs
+- Optional shared environment variable: `ALLOWED_ORIGIN` — allow browser requests from one trusted origin; unset means no cross-origin access
+- Telegram access uses the connected Replit Telegram integration; no bot token is stored in source
+- `DATABASE_URL` is provided by Replit and must not be set manually
 
 ## Stack
 
@@ -22,23 +27,30 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/api-server/src/routes/access-key.ts` — access-key verification route and rate limit
+- `artifacts/api-server/src/lib/telegram-bot.ts` — Telegram polling and admin commands
+- `artifacts/api-server/src/lib/access-key.ts` — key generation, persistence helpers, and comparison
+- `lib/db/src/schema/access-key-state.ts` — persistent key and Telegram update offset
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Key state and Telegram update offsets are stored in PostgreSQL so restarts do not reset the key or replay processed commands.
+- The bot uses long polling; an existing webhook must be removed before polling can work.
+- The verification route fails closed rather than using a built-in default key.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+The API checks access keys for the companion app. Authorized Telegram admins can retrieve the current key, generate a new six-character key, or set a custom 4–32 character alphanumeric key.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+_No additional preferences recorded._
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Configure `ADMIN_IDS` before using Telegram commands. If it is empty, Telegram polling stays disabled.
+- The verification endpoint allows 10 attempts per IP per minute; the in-memory limiter resets when the process restarts.
+- Cross-origin browser calls require setting `ALLOWED_ORIGIN`; same-origin and server-to-server calls do not.
 
 ## Pointers
 
