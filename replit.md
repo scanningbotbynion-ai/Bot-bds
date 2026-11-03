@@ -5,11 +5,13 @@ A Replit-hosted API that verifies access keys and lets approved Telegram admins 
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server through its managed workflow
+- `pnpm --filter @workspace/access-key-checker run dev` — run the browser key checker
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — apply schema changes to the development database
 - `POST /api/verify-key` — accepts `{"key":"..."}` and returns `{"ok":true|false}`
+- The Access Key Checker at `/` submits candidate keys to the API; it does not save them
 - Telegram admin commands: `/key`, `/newkey`, `/setkey NEWKEY`
 - Required shared environment variable: `ADMIN_IDS` — comma-separated numeric Telegram user IDs
 - Optional shared environment variable: `ALLOWED_ORIGIN` — allow browser requests from one trusted origin; unset means no cross-origin access
@@ -30,6 +32,7 @@ A Replit-hosted API that verifies access keys and lets approved Telegram admins 
 - `artifacts/api-server/src/routes/access-key.ts` — access-key verification route and rate limit
 - `artifacts/api-server/src/lib/telegram-bot.ts` — Telegram polling and admin commands
 - `artifacts/api-server/src/lib/access-key.ts` — key generation, persistence helpers, and comparison
+- `artifacts/access-key-checker/src/App.tsx` — browser-based access-key checker
 - `lib/db/src/schema/access-key-state.ts` — persistent key and Telegram update offset
 
 ## Architecture decisions

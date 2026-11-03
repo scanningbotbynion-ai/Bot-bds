@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Access Key Checker"
+description = "A lightweight browser page for the Chinese Auto Bot service that submits an access key to the existing API and shows the verification result."
+version = "1.0.0"
+id = "artifacts/access-key-checker"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23529
+
+[services.development]
+run = "pnpm --filter @workspace/access-key-checker run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/access-key-checker", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/access-key-checker/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23529"
+BASE_PATH = "/"

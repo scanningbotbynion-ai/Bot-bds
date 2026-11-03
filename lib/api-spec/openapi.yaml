@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: access-key
+    description: Access-key verification
 paths:
   /healthz:
     get:
@@ -24,6 +26,43 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /verify-key:
+    post:
+      operationId: verifyKey
+      tags: [access-key]
+      summary: Verify an access key
+      description: Checks a submitted key without returning the stored key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyKeyInput"
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KeyVerificationResult"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KeyVerificationResult"
+        "429":
+          description: Too many attempts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KeyVerificationResult"
+        "503":
+          description: Verification service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KeyVerificationResult"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +72,22 @@ components:
           type: string
       required:
         - status
+    VerifyKeyInput:
+      type: object
+      properties:
+        key:
+          type: string
+          minLength: 1
+          maxLength: 128
+      required:
+        - key
+    KeyVerificationResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        error:
+          type: string
+      required:
+        - ok
 
