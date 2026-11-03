@@ -430,6 +430,7 @@ function Pin() {
       </button>
     </form>
     <button className="go-back" type="button" onClick={() => setLocation('/login')}>Go back</button>
+    <p className="copyright pin-copyright">© Chinese Auto Bot, 2026. All rights reserved.</p>
   </main>;
 }
 

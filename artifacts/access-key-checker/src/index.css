@@ -251,6 +251,7 @@
 .pin-submit span { width:28px; height:28px; background:rgba(255,255,255,.28); }
 .pin-submit svg { width:16px; height:16px; }
 .go-back { margin-top:21px; border:0; color:#0d6ed5; background:transparent; font-size:14.5px; font-weight:500; }
+.pin-copyright { margin-top:auto; padding-top:18px; }
 .pin-validation { margin:10px 0 -10px; color:#c2343b; font-size:12px; }
 
 .test-screen { min-height:100dvh; display:grid; place-items:center; padding:24px; color:#e8edf5; background:radial-gradient(circle at 5% 5%,rgba(37,89,87,.34),transparent 350px),#111720; font-family:Outfit,sans-serif; }
