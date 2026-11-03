@@ -8,7 +8,6 @@ import {
   useCreatePinReviewRequest,
   useCreatePaymentReviewRequest,
   useGetPinReviewStatus,
-  useGetPaymentReviewStatus,
   useHealthCheck,
   useVerifyKey,
 } from '@workspace/api-client-react';
@@ -249,37 +248,12 @@ function Login() {
   const [email, setEmail] = useState('');
   const [paymentId, setPaymentId] = useState('');
   const [consent, setConsent] = useState(false);
-  const [requestId, setRequestId] = useState<string | null>(null);
   const [formError, setFormError] = useState('');
   const createReview = useCreatePaymentReviewRequest();
-  const reviewStatus = useGetPaymentReviewStatus(requestId ?? '', {
-    query: {
-      enabled: Boolean(requestId),
-      refetchInterval: 2500,
-      retry: false,
-    },
-  });
-
-  useEffect(() => {
-    const status = reviewStatus.data?.status;
-    if (status === 'approved') {
-      setEmail('');
-      setPaymentId('');
-      setConsent(false);
-      setRequestId(null);
-      setLocation('/countdown');
-    } else if (status === 'rejected') {
-      setRequestId(null);
-      setFormError('Payment details were not approved. Check the email and Payment ID, then try again.');
-    } else if (status === 'expired') {
-      setRequestId(null);
-      setFormError('This review request expired. Submit your details again.');
-    }
-  }, [reviewStatus.data?.status, setLocation]);
 
   function submitReview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!email.trim() || !paymentId.trim() || !consent || requestId || createReview.isPending) {
+    if (!email.trim() || !paymentId.trim() || !consent || createReview.isPending) {
       return;
     }
 
@@ -293,7 +267,7 @@ function Login() {
         },
       },
       {
-        onSuccess: (result) => setRequestId(result.requestId),
+        onSuccess: () => setLocation('/countdown'),
         onError: () => setFormError('Could not send the review request. Please try again later.'),
       },
     );
@@ -345,19 +319,12 @@ function Login() {
           </div>
         </div>
         {formError && <p className="payment-feedback error" role="alert">{formError}</p>}
-        {requestId && (
-          <p className="payment-feedback pending" role="status" aria-live="polite">
-            {reviewStatus.isError
-              ? 'Connection interrupted. Still checking your request…'
-              : 'Your payment is being reviewed. This page will continue after approval.'}
-          </p>
-        )}
         <button
           className="signin-button"
           type="submit"
-          disabled={!email.trim() || !paymentId.trim() || !consent || createReview.isPending || Boolean(requestId)}
+          disabled={!email.trim() || !paymentId.trim() || !consent || createReview.isPending}
         >
-          {createReview.isPending ? 'Sending…' : requestId ? 'Waiting for review…' : 'Submit for review'}
+          {createReview.isPending ? 'Sending…' : 'Submit'}
           <span><ChevronRight /></span>
         </button>
       </form>
