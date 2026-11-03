@@ -4,6 +4,8 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
+import SignalGenerator from '@/pages/signal-generator';
+import SignalResult from '@/pages/signal-result';
 import {
   useCreatePaymentReviewRequest,
   useHealthCheck,
@@ -339,8 +341,11 @@ function Countdown({ second = false }: { second?: boolean }) {
     return () => window.clearInterval(timer);
   }, []);
   useEffect(() => {
-    if (seconds === 0 && !second) {
-      const timeout = window.setTimeout(() => setLocation('/pin'), 600);
+    if (seconds === 0) {
+      const timeout = window.setTimeout(
+        () => setLocation(second ? '/signal-generator' : '/pin'),
+        600,
+      );
       return () => window.clearTimeout(timeout);
     }
     return undefined;
@@ -378,7 +383,7 @@ function Countdown({ second = false }: { second?: boolean }) {
       </section>
       <div className="status-pill"><i />{pill}</div>
       <svg className="floor-rings" viewBox="0 0 390 60" aria-hidden="true"><ellipse cx="195" cy="42" rx="125" ry="20" /><ellipse cx="195" cy="42" rx="100" ry="15" /><ellipse cx="195" cy="42" rx="70" ry="9" /></svg>
-      {second && <div className="countdown-final">Signal sequence complete</div>}
+      {second && seconds === 0 && <div className="countdown-final">Opening Signal Generator…</div>}
     </main>
   );
 }
@@ -466,6 +471,8 @@ function Router() {
     <Route path="/countdown-2" component={() => <Countdown second />} />
     <Route path="/test-key" component={TestKey} />
     <Route path="/terms" component={Terms} />
+    <Route path="/signal-generator" component={SignalGenerator} />
+    <Route path="/signal-result" component={SignalResult} />
     <Route component={NotFound} />
   </Switch></RoutedErrorBoundary>;
 }
