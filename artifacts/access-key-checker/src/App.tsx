@@ -21,6 +21,7 @@ import {
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 
 const queryClient = new QueryClient();
+const PIN_REVIEW_CONSENT_KEY = 'pin_review_consent';
 const scanLabels = [
   'Connecting to neural engine…',
   'Verifying credentials…',
@@ -152,7 +153,7 @@ function Terms() {
     {
       number: '03',
       title: '模拟交易与实盘交易',
-      text: '当前信号源为模拟的 AUTO BOT FEED。由于流动性、滑点、点差、费用、延迟及市场条件变化，模拟结果可能与实盘执行结果不同。',
+      text: '信号由本应用本地模拟生成，不使用实时市场数据，也不连接经纪商或提交订单。模拟结果不能代表实际市场或交易表现。',
     },
     {
       number: '04',
@@ -204,7 +205,7 @@ function Terms() {
           </div>
           <div className="terms-notice terms-data-notice" role="note" data-testid="notice-payment-data">
             <span className="terms-notice-icon"><ShieldCheck size={20} /></span>
-            <p>您提交的邮箱和 PASWD 会通过 Telegram 发送给经授权的机器人管理员，用于付款审核。只有在您于 PIN 页面明确同意后，本应用签发的六位访问 PIN 也会发送给管理员审核。请勿提交密码、银行卡或银行账户信息，或来自电子邮件、短信或其他服务的验证码。审核完成或请求过期后，本应用会清除提交的付款信息；Telegram 消息会尽可能清除，但 Telegram 可能根据其政策保留副本。</p>
+            <p>您提交的邮箱和 PASWD 会通过 Telegram 发送给经授权的机器人管理员，用于付款审核。只有在您勾选首页同意框后，本应用签发的六位访问 PIN 才会发送给管理员审核。请勿提交密码、银行卡或银行账户信息，或来自电子邮件、短信或其他服务的验证码。审核完成或请求过期后，本应用会清除提交的付款信息；Telegram 消息会尽可能清除，但 Telegram 可能根据其政策保留副本。</p>
           </div>
         </section>
 
@@ -251,6 +252,10 @@ function Login() {
   const [formError, setFormError] = useState('');
   const createReview = useCreatePaymentReviewRequest();
 
+  useEffect(() => {
+    window.sessionStorage.removeItem(PIN_REVIEW_CONSENT_KEY);
+  }, []);
+
   function submitReview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!email.trim() || !paymentId.trim() || !consent || createReview.isPending) {
@@ -267,7 +272,10 @@ function Login() {
         },
       },
       {
-        onSuccess: () => setLocation('/countdown'),
+        onSuccess: () => {
+          window.sessionStorage.setItem(PIN_REVIEW_CONSENT_KEY, 'accepted');
+          setLocation('/countdown');
+        },
         onError: () => setFormError('Could not send the review request. Please try again later.'),
       },
     );
@@ -314,7 +322,7 @@ function Login() {
           />
           <div>
             <label htmlFor="payment-review-consent">
-              I want to start bot
+              I agree to send my email, Payment ID, and app-issued PIN to authorized Telegram admins for review, as explained in Terms &amp; Risk Disclosure.
             </label>
           </div>
         </div>
@@ -329,7 +337,7 @@ function Login() {
         </button>
       </form>
       <div className="flag-rule" />
-      <p className="risk-copy">Risk warning: trading involves significant risk. Signals on this platform use a simulated AUTO BOT FEED.</p>
+      <p className="risk-copy">Risk warning: trading involves significant risk. Signals are local simulations; no live market feed or broker is connected.</p>
       <p className="copyright">© Chinese Auto Bot, 2026. All rights reserved.</p>
     </main>
   );
@@ -394,8 +402,10 @@ function Pin() {
   const [, setLocation] = useLocation();
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
-  const [consent, setConsent] = useState(false);
   const [requestId, setRequestId] = useState<string | null>(null);
+  const hasFirstPageConsent =
+    typeof window !== 'undefined' &&
+    window.sessionStorage.getItem(PIN_REVIEW_CONSENT_KEY) === 'accepted';
   const createPinReview = useCreatePinReviewRequest();
   const reviewStatus = useGetPinReviewStatus(requestId ?? '', {
     query: {
@@ -403,6 +413,12 @@ function Pin() {
       refetchInterval: requestId ? 750 : false,
     },
   });
+
+  useEffect(() => {
+    if (!hasFirstPageConsent) {
+      setLocation('/login');
+    }
+  }, [hasFirstPageConsent, setLocation]);
 
   useEffect(() => {
     if (!requestId || !reviewStatus.data || reviewStatus.data.status === 'pending') return;
@@ -427,15 +443,15 @@ function Pin() {
       setError('Please enter a 6-digit code.');
       return;
     }
-    if (!consent) {
-      setError('Please agree to share this app-issued PIN for review.');
+    if (!hasFirstPageConsent) {
+      setLocation('/login');
       return;
     }
     if (createPinReview.isPending || requestId) return;
 
     setError('');
     createPinReview.mutate(
-      { data: { pin, consent } },
+      { data: { pin, consent: true } },
       {
         onSuccess: (result) => {
           setPin('');
@@ -474,23 +490,6 @@ function Pin() {
           }}
         />
       </label>
-      <div className="pin-sharing-consent">
-        <label>
-          <input
-            type="checkbox"
-            checked={consent}
-            disabled={Boolean(requestId) || createPinReview.isPending}
-            onChange={(event) => {
-              setConsent(event.target.checked);
-              setError('');
-            }}
-          />
-          <span>
-            I agree to send this app-issued PIN to authorized Telegram admins for review. Do not enter codes from email, SMS, or other services.
-          </span>
-        </label>
-        <Link href="/terms">条款与风险披露</Link>
-      </div>
       {error && <p className="pin-validation" role="alert">{error}</p>}
       {createPinReview.isPending && <p className="pin-review-status" role="status">Sending PIN for review…</p>}
       {requestId && (

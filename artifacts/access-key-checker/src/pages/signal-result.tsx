@@ -87,7 +87,6 @@ export default function SignalResult() {
             <span className="sr-brand-mark"><Activity size={19} strokeWidth={2.2} /></span>
             <span>CHINESE <b>AUTO BOT</b></span>
           </div>
-          <div className="sr-demo-badge"><i /> DEMO CONSOLE</div>
         </header>
 
         <section className="sr-layout" aria-label="Signal result">
@@ -96,8 +95,7 @@ export default function SignalResult() {
               <div className="sr-intro">
                 <div className="sr-overline"><i /> SIGNAL LAB <span> / 09</span></div>
                 <h1 className="sr-title">Signal<br /><em>result.</em></h1>
-                <p className="sr-subtitle">Your generated direction is ready. This result is a local simulation, not a live market reading.</p>
-                <div className="sr-sim-tag"><Activity size={13} /> SIMULATED OUTPUT · NO BROKER CONNECTED</div>
+                <p className="sr-subtitle">Your generated direction and expiry countdown are ready.</p>
               </div>
               <article className={`sr-card ${isUp ? "up" : "down"}`} aria-live="polite">
                 <div className="sr-card-head">
@@ -110,9 +108,8 @@ export default function SignalResult() {
 
                 <div className="sr-body">
                   <div className="sr-chart">
-                    <div className="sr-chart-top"><span>ILLUSTRATION / NOT DATA</span><span>{signal.market}</span></div>
+                    <div className="sr-chart-top"><span>{signal.market}</span></div>
                     <SimulatedCandles direction={signal.direction} />
-                    <div className="sr-chart-caption">Decorative simulated candlesticks · no market feed</div>
                   </div>
                   <div className="sr-meta">
                     <div className="sr-meta-row">
@@ -147,7 +144,7 @@ export default function SignalResult() {
                   <span className="sr-generated">GENERATED {formatGeneratedAt(signal.generatedAt)}</span>
                   <button className="sr-return" type="button" onClick={returnToGenerator}><ArrowLeft size={15} /> Return to generator</button>
                 </div>
-                <p className="sr-notice"><ShieldAlert size={14} /> Simulated output only. Not live financial advice. No broker is connected and no order has been placed.</p>
+                <p className="sr-notice"><ShieldAlert size={14} /> Demo only: signals and chart are generated locally, not from live market data. No broker is connected and no orders are placed. Not financial advice.</p>
               </article>
             </>
           ) : (
@@ -155,16 +152,15 @@ export default function SignalResult() {
               <div className="sr-empty-mark"><Activity size={25} /></div>
               <div className="sr-overline" style={{ justifyContent: "center" }}><i /> SIGNAL LAB</div>
               <h1>No active signal</h1>
-              <p>There is no unexpired generated result in this session. Return to the generator to create a new simulated direction.</p>
+              <p>There is no unexpired generated result in this session. Return to the generator to create a new direction.</p>
               <button className="sr-return" type="button" onClick={returnToGenerator}><ArrowLeft size={15} /> Return to generator</button>
-              <p className="sr-notice" style={{ justifyContent: "center" }}><ShieldAlert size={14} /> Simulation only · No broker connected · Not financial advice</p>
+              <p className="sr-notice" style={{ justifyContent: "center" }}><ShieldAlert size={14} /> Demo only: directions are generated locally, not from live market data. No broker is connected or orders placed. Not financial advice.</p>
             </div>
           )}
         </section>
 
         <footer className="sr-footer">
           <span>CHINESE AUTO BOT <i>/</i> SIGNAL RESULT</span>
-          <p>Simulated output · Not connected to live markets or a broker · Not financial advice</p>
         </footer>
       </div>
     </main>

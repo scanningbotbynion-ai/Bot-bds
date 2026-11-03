@@ -35,8 +35,7 @@
 .signal-brand { display: flex; align-items: center; gap: 11px; color: #d9e8dd; font: 600 11px/1 "Space Mono", monospace; letter-spacing: 1.7px; }
 .signal-brand b { color: var(--sg-green); font-weight: 600; }
 .signal-brand-mark { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid rgba(118, 244, 155, .32); border-radius: 9px; color: var(--sg-green); background: rgba(44, 111, 64, .15); }
-.signal-demo-badge { display: flex; align-items: center; gap: 8px; color: #a5b5a8; font: 500 10px "Space Mono", monospace; letter-spacing: 1.3px; }
-.signal-demo-badge i, .signal-output-head i, .signal-output-foot i { width: 6px; height: 6px; border-radius: 50%; background: var(--sg-green-bright); box-shadow: 0 0 10px rgba(59, 234, 113, .48); }
+.signal-output-head i { width: 6px; height: 6px; border-radius: 50%; background: var(--sg-green-bright); box-shadow: 0 0 10px rgba(59, 234, 113, .48); }
 .signal-layout { flex: 1; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); gap: clamp(40px, 8vw, 112px); align-items: center; padding: 64px 0 58px; }
 .signal-main { max-width: 580px; }
 .signal-heading { margin: 0 0 32px; }
@@ -51,7 +50,6 @@
 .signal-panel-title > div { display: flex; align-items: center; gap: 11px; }
 .signal-index { color: var(--sg-green); font: 11px "Space Mono", monospace; letter-spacing: .5px; }
 .signal-panel-title h2 { margin: 0; color: #e2ebe4; font-size: 15px; font-weight: 550; letter-spacing: .1px; }
-.signal-local-tag { display: flex; align-items: center; gap: 6px; color: #789082; font: 9px "Space Mono", monospace; letter-spacing: .8px; }
 .signal-field { margin-top: 21px; }
 .signal-label { display: block; margin-bottom: 9px; color: #a9b9ad; font-size: 12px; font-weight: 500; }
 .signal-broker-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
@@ -75,7 +73,7 @@
 .signal-generate:active { transform: translateY(0); }
 .signal-generate span { position: absolute; margin-left: min(350px, 74%); display: grid; place-items: center; }
 .signal-generator-error { margin: -12px 0 0; color: #ff9ca5; text-align: center; font-size: 11px; line-height: 1.4; }
-.signal-generator-note { margin: 11px 0 0; color: #68786e; text-align: center; font-size: 10px; }
+.signal-generator-note { margin: 12px 0 0; color: #a0afa4; text-align: center; font-size: 11px; line-height: 1.5; }
 .signal-output { position: relative; min-height: 420px; display: flex; flex-direction: column; padding: 19px 20px 14px; border: 1px solid rgba(128, 181, 140, .19); border-radius: 12px; background: linear-gradient(150deg, rgba(14, 29, 23, .9), rgba(8, 18, 15, .84)); }
 .signal-output::before { position: absolute; top: -1px; left: 20px; width: 54px; height: 2px; content: ""; background: var(--sg-green); }
 .signal-output-head { display: flex; align-items: center; gap: 10px; color: #96a99a; font: 10px "Space Mono", monospace; letter-spacing: 1.2px; }
@@ -87,9 +85,6 @@
 .signal-empty > p { margin: 9px 0 26px; color: #77877c; font-size: 12px; }
 .signal-empty-meta { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-top: 1px solid rgba(150, 193, 162, .12); color: #7f9085; font-size: 11px; }
 .signal-empty-meta b { color: #c9d6cc; font-weight: 500; text-align: right; }
-.signal-output-foot { display: flex; align-items: center; justify-content: space-between; padding-top: 13px; border-top: 1px solid rgba(150, 193, 162, .13); color: #65766c; font: 9px "Space Mono", monospace; letter-spacing: 1px; }
-.signal-output-foot b { display: flex; align-items: center; gap: 7px; color: #9cc3a4; font-weight: 400; }
-.signal-output-foot i { width: 5px; height: 5px; }
 .signal-result { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 15px 2px 16px; animation: signal-arrive .28s ease both; }
 @keyframes signal-arrive { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
 .signal-result-kicker { display: flex; align-items: center; gap: 8px; color: #819389; font: 9px "Space Mono", monospace; letter-spacing: 1px; }
@@ -110,7 +105,6 @@
 .signal-footer { min-height: 62px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-top: 1px solid var(--sg-line); color: #637269; font: 9px "Space Mono", monospace; letter-spacing: .6px; }
 .signal-footer > span { white-space: nowrap; }
 .signal-footer > span i { padding: 0 5px; color: #3f5146; font-style: normal; }
-.signal-footer p { margin: 0; text-align: right; font: 10px "Outfit", sans-serif; letter-spacing: 0; }
 .signal-page button:focus-visible, .signal-page select:focus-visible { outline: 2px solid #a5ffb8; outline-offset: 3px; }
 
 @media (max-width: 760px) {
@@ -121,12 +115,10 @@
   .signal-heading h1 { font-size: clamp(46px, 12vw, 62px); }
   .signal-output { min-height: 350px; }
   .signal-footer { align-items: flex-start; flex-direction: column; justify-content: center; gap: 7px; padding: 15px 0; }
-  .signal-footer p { text-align: left; line-height: 1.5; }
 }
 @media (max-width: 420px) {
   .signal-page { padding: 0 14px; }
   .signal-panel { padding: 19px 15px 15px; }
-  .signal-local-tag { font-size: 8px; letter-spacing: .3px; }
   .signal-broker-options, .signal-time-options { gap: 6px; }
   .signal-broker-option { gap: 5px; padding: 0 5px; font-size: 11px; }
   .signal-option-check { width: 13px; height: 13px; }

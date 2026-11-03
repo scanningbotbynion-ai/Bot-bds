@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Activity, ArrowUpRight, BarChart3, Check, ChevronDown, Radio, Zap } from "lucide-react";
+import { Activity, ArrowUpRight, BarChart3, Check, ChevronDown, Zap } from "lucide-react";
 import "./signal-generator.css";
 import {
   brokerOptions,
@@ -51,7 +51,6 @@ export default function SignalGenerator() {
             <span className="signal-brand-mark"><Activity size={19} strokeWidth={2.2} /></span>
             <span>CHINESE <b>AUTO BOT</b></span>
           </div>
-          <div className="signal-demo-badge"><i /> DEMO CONSOLE</div>
         </header>
 
         <section className="signal-layout" aria-label="Signal generator">
@@ -59,13 +58,12 @@ export default function SignalGenerator() {
             <div className="signal-heading">
               <div className="signal-overline"><span /> SIGNAL LAB <span className="signal-overline-rule" /></div>
               <h1>Signal<br /><em>generator.</em></h1>
-              <p>Configure a setup. Generate a simulated direction.</p>
+              <p>Configure a setup. Generate a direction.</p>
             </div>
 
             <section className="signal-panel">
               <div className="signal-panel-title">
                 <div><span className="signal-index">01</span><h2>Configure signal</h2></div>
-                <span className="signal-local-tag"><Radio size={13} /> LOCAL SIMULATION</span>
               </div>
 
               <div className="signal-field">
@@ -121,7 +119,9 @@ export default function SignalGenerator() {
                 <span><ArrowUpRight size={17} /></span>
               </button>
               {error && <p className="signal-generator-error" role="alert">{error}</p>}
-              <p className="signal-generator-note">For exploration only. No broker connection or market feed.</p>
+              <p className="signal-generator-note">
+                Demo only: directions are generated locally, not from live market data. No broker is connected and no orders are placed. Not financial advice.
+              </p>
             </section>
           </div>
 
@@ -134,20 +134,16 @@ export default function SignalGenerator() {
             <div className="signal-empty">
               <div className="signal-empty-mark"><Activity size={24} /></div>
               <span className="signal-empty-label">READY TO GENERATE</span>
-              <p>A generated demo direction and expiry timer open on the next page.</p>
+              <p>A generated direction and expiry timer open on the next page.</p>
               <div className="signal-empty-meta"><span>Broker</span><b>{broker}</b></div>
               <div className="signal-empty-meta"><span>Market</span><b>{market}</b></div>
               <div className="signal-empty-meta"><span>Interval</span><b>{timeframe}</b></div>
-            </div>
-            <div className="signal-output-foot">
-              <span>SESSION MODE</span><b><i /> SIMULATED</b>
             </div>
           </aside>
         </section>
 
         <footer className="signal-footer">
           <span>CHINESE AUTO BOT <i> / </i> SIGNAL GENERATOR</span>
-          <p>Simulated demo output · Not connected to live markets or a broker · Not financial advice</p>
         </footer>
       </div>
     </main>
