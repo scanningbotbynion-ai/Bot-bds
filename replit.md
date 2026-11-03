@@ -5,13 +5,15 @@ A Replit-hosted API that verifies access keys and lets approved Telegram admins 
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server through its managed workflow
-- `pnpm --filter @workspace/access-key-checker run dev` — run the browser key checker
+- `pnpm --filter @workspace/access-key-checker run dev` — run the Chinese Auto Bot web preview
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — apply schema changes to the development database
 - `POST /api/verify-key` — accepts `{"key":"..."}` and returns `{"ok":true|false}`
-- The Access Key Checker at `/` submits candidate keys to the API; it does not save them
+- Main site flow: `/` → `/login` → `/countdown` → `/pin` → `/countdown-2`
+- `/test-key` is a separate temporary page for testing the live key-verification API
+- Only access-key verification is real; sign-in and PIN screens are visual prototype steps
 - Telegram admin commands: `/key`, `/newkey`, `/setkey NEWKEY`
 - Required shared environment variable: `ADMIN_IDS` — comma-separated numeric Telegram user IDs
 - Optional shared environment variable: `ALLOWED_ORIGIN` — allow browser requests from one trusted origin; unset means no cross-origin access
@@ -32,7 +34,9 @@ A Replit-hosted API that verifies access keys and lets approved Telegram admins 
 - `artifacts/api-server/src/routes/access-key.ts` — access-key verification route and rate limit
 - `artifacts/api-server/src/lib/telegram-bot.ts` — Telegram polling and admin commands
 - `artifacts/api-server/src/lib/access-key.ts` — key generation, persistence helpers, and comparison
-- `artifacts/access-key-checker/src/App.tsx` — browser-based access-key checker
+- `artifacts/access-key-checker/src/App.tsx` — five-screen access flow and temporary checker
+- `artifacts/access-key-checker/design-reference/` — supplied five-screen design archive
+- `artifacts/access-key-checker/public/assets/` — supplied logo and hero images
 - `lib/db/src/schema/access-key-state.ts` — persistent key and Telegram update offset
 
 ## Architecture decisions
@@ -40,6 +44,7 @@ A Replit-hosted API that verifies access keys and lets approved Telegram admins 
 - Key state and Telegram update offsets are stored in PostgreSQL so restarts do not reset the key or replay processed commands.
 - The bot uses the Telegram Bot API directly with `TELEGRAM_BOT_TOKEN` and long polling; an existing webhook must be removed before polling can work.
 - The verification route fails closed rather than using a built-in default key.
+- The supplied five-screen design archive is the source of truth for the web preview; do not replace it with a generic checker design.
 
 ## Product
 

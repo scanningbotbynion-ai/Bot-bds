@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sign In</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+input:focus{outline:none}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 728px; overflow: hidden; background: #222838; font-family: 'Roboto', system-ui, sans-serif; color: #ffffff; box-sizing: border-box">
+
+<svg aria-hidden="true" width="390" height="728" viewBox="0 0 390 728" fill="none" style="position: absolute; left: 0; top: 0; pointer-events: none"><polygon points="54,571 90,571 74,590" fill="#1b202d"></polygon><polyline points="0,623 58,604 117,631 176,594 232,620 293,585 352,610 390,590" stroke="rgba(255,255,255,0.06)" stroke-width="1.5" stroke-linejoin="round"></polyline></svg>
+
+<div style="height: 79px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 11px; border-bottom: 1px solid #2d3341">
+<img src="/_blob/eadb88eb02a88e8b50f19145153b765a" alt="Chinese Auto Bot logo" style="width: 51px; height: 51px; border-radius: 50%; display: block">
+<div style="display: flex; flex-direction: column; font-family: 'Outfit', system-ui, sans-serif; font-weight: 700; font-size: 19px; line-height: 20px">
+<span style="letter-spacing: 1.3px; color: #ffffff">CHINESE</span>
+<span style="letter-spacing: 4.6px; color: #ff2d4e">AUTO BOT</span>
+</div>
+</div>
+
+<h1 style="margin: 39px 0 0; text-align: center; font-family: 'Outfit', system-ui, sans-serif; font-size: 28px; line-height: 36px; font-weight: 700; color: #ffffff">Sign In To Your Account</h1>
+<p style="margin: 10px 0 0; text-align: center; font-size: 14.5px; line-height: 20px; color: #b3b8c8">Use your Chinese Auto Bot account to continue</p>
+
+<div style="position: relative; overflow: hidden; margin: 34px 16px 0; box-sizing: border-box; padding: 32px 24px 28px; display: flex; flex-direction: column; gap: 28px; background: #2b3141; border-radius: 16px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25)">
+<div style="position: absolute; left: 0; right: 0; top: 0; height: 4px; background: linear-gradient(90deg, #de2810 0%, #de2810 70%, #ffde00 70%, #ffde00 100%)"></div>
+
+<div style="position: relative; height: 57px; box-sizing: border-box; display: flex; align-items: center; border: 1px solid #565c6c; border-radius: 14px">
+<label for="email" style="position: absolute; top: -13px; left: 13px; padding: 0 6px; background: #2b3141; font-size: 14.5px; line-height: 24px; color: #d6d9e2">Email Address</label>
+<input id="email" type="email" style="flex: 1; min-width: 0; height: 100%; box-sizing: border-box; padding: 0 18px; background: transparent; border: 0; color: #ffffff; font-family: inherit; font-size: 16px">
+</div>
+
+<div style="position: relative; height: 57px; box-sizing: border-box; display: flex; align-items: center; border: 1px solid #565c6c; border-radius: 14px">
+<label for="password" style="position: absolute; top: -13px; left: 13px; padding: 0 6px; background: #2b3141; font-size: 14.5px; line-height: 24px; color: #d6d9e2">Account Password</label>
+<input id="password" type="password" style="flex: 1; min-width: 0; height: 100%; box-sizing: border-box; padding: 0 18px; background: transparent; border: 0; color: #ffffff; font-family: inherit; font-size: 16px">
+<button aria-label="Show password" style="background: none; border: 0; padding: 0; margin: 0 15px 0 0; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; color: #9aa0ae">
+<svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"></path><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"></path><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"></path><path d="m2 2 20 20"></path></svg>
+</button>
+</div>
+
+<div style="display: flex; align-items: center; height: 32px">
+<button aria-label="Remember me" aria-pressed="true" style="width: 32px; height: 32px; padding: 0; margin: 0; border: 0; border-radius: 7px; background: #ffffff; display: flex; align-items: center; justify-content: center">
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3f7fe0" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+</button>
+<span style="margin-left: 16px; font-size: 14.5px; color: #ffffff">Remember me</span>
+<a href="#forgot" style="margin-left: auto; font-size: 14.5px; font-weight: 500; color: #4a90e8; text-decoration: none">Forgot your password?</a>
+</div>
+
+<a href="Countdown.dc.html" style="width: 100%; height: 64px; box-sizing: border-box; text-decoration: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 16px; border: 0; border-radius: 16px; background: #4a90e8; box-shadow: 0 12px 32px rgba(74, 144, 232, 0.35); color: #ffffff; font-family: 'Outfit', system-ui, sans-serif; font-size: 17.5px; font-weight: 700">
+<span>Sign in</span>
+<span style="width: 32px; height: 32px; border-radius: 50%; background: rgba(255, 255, 255, 0.22); display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
+</a>
+</div>
+
+<div style="margin: 48px auto 0; width: 64px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, #de2810 0%, #de2810 70%, #ffde00 70%, #ffde00 100%)"></div>
+<p style="margin: 19px 16px 0; text-align: center; font-size: 12px; line-height: 19.5px; color: #7c8194">Risk warning: trading involves significant risk. Signals on this platform use a simulated DEMO feed.</p>
+<p style="margin: 6px 16px 0; text-align: center; font-size: 12px; line-height: 19.5px; color: #7c8194">© Chinese Auto Bot, 2026. All rights reserved.</p>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":728}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

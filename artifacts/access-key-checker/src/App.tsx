@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -6,342 +6,261 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { useHealthCheck, useVerifyKey } from '@workspace/api-client-react';
 import {
-  Activity,
-  ArrowUpRight,
-  Check,
-  CircleAlert,
-  CircleCheck,
-  CircleX,
-  Eye,
-  EyeOff,
-  KeyRound,
-  LockKeyhole,
-  RefreshCw,
-  ShieldCheck,
-  WifiOff,
+  Activity, ArrowRight, Brain, ChartNoAxesColumnIncreasing, Check, CheckCircle2,
+  ChevronRight, CircleAlert, Eye, EyeOff, FileText, Headphones, KeyRound,
+  LockKeyhole, ShieldCheck, Sparkles, Zap,
 } from 'lucide-react';
-import {
-  Route,
-  Switch,
-  useLocation,
-  Router as WouterRouter,
-} from 'wouter';
+import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 
 const queryClient = new QueryClient();
+const scanLabels = [
+  'Connecting to neural engine…',
+  'Verifying credentials…',
+  'Scanning markets…',
+  'Activating signal feed…',
+  'Generating login token…',
+];
+const pillLabels = ['CONNECTING…', 'VERIFYING…', 'SCANNING MARKETS…', 'ACTIVATING FEED…', 'GENERATING TOKEN…'];
+const thresholds = [3, 8, 18, 25, 30];
 
 function Home() {
   const health = useHealthCheck();
-  const verification = useVerifyKey();
+  const verifyKey = useVerifyKey();
+  const [, setLocation] = useLocation();
   const [key, setKey] = useState('');
-  const [showKey, setShowKey] = useState(false);
-  const [result, setResult] = useState<'accepted' | 'rejected' | 'unavailable' | 'limited' | null>(null);
+  const [error, setError] = useState('');
+  const [pending, setPending] = useState(false);
+  const online = !health.isError && !!health.data &&
+    !['down', 'unavailable', 'offline', 'error'].includes(health.data.status.toLowerCase());
 
-  const status = (health.data?.status || '').toLowerCase();
-  const serviceOnline = !health.isError && Boolean(health.data) && !['down', 'unavailable', 'offline', 'error'].includes(status);
-
-  function submitKey(event: FormEvent<HTMLFormElement>) {
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!key.length || verification.isPending) return;
+    if (!key.trim() || pending) return;
     const candidate = key;
-    setKey('');
-    setShowKey(false);
-    setResult(null);
-    verification.mutate(
-      { data: { key: candidate } },
-      {
-        onSuccess: (response) => setResult(response.ok ? 'accepted' : 'rejected'),
-        onError: (error) => {
-          const apiError = error as { status?: number; response?: { status?: number }; cause?: { status?: number } };
-          const code = apiError.status ?? apiError.response?.status ?? apiError.cause?.status;
-          if (code === 429) setResult('limited');
-          else if (code === undefined || code >= 500) setResult('unavailable');
-          else setResult('rejected');
-        },
+    setPending(true);
+    setError('');
+    verifyKey.mutate({ data: { key: candidate } }, {
+      onSuccess: (result) => {
+        setPending(false);
+        setKey('');
+        if (result.ok) setLocation('/login');
+        else setError(result.error || 'Invalid access key. Please try again.');
       },
-    );
+      onError: (err) => {
+        const e = err as { status?: number; response?: { status?: number } };
+        setPending(false);
+        setError((e.status ?? e.response?.status) === 429
+          ? 'Too many attempts. Please wait a moment and try again.'
+          : 'Unable to verify your key. Please try again.');
+      },
+    });
   }
-
-  function resetResult() {
-    if (result) setResult(null);
-    if (verification.isError) verification.reset();
-  }
-
-  const isBusy = verification.isPending;
 
   return (
-    <main className="station-shell">
-      <div className="station-content mx-auto flex min-h-[100dvh] max-w-[1320px] flex-col px-5 sm:px-8 lg:px-12">
-        <header className="flex items-center justify-between border-b border-foreground/10 py-5">
-          <div className="flex items-center gap-3">
-            <div className="grid size-10 place-items-center rounded-xl bg-[#263e3b] text-[#f4eee1] shadow-sm">
-              <KeyRound size={19} strokeWidth={1.8} />
-            </div>
-            <div>
-              <p className="display text-[18px] font-bold leading-tight tracking-[-0.035em]">Chinese Auto Bot</p>
-              <p className="mono mt-1 text-[9px] uppercase tracking-[.19em] text-muted-foreground">Operator tools / access</p>
-            </div>
-          </div>
-          <div className="mono flex items-center gap-2 rounded-full border border-foreground/10 bg-card/50 px-3 py-2 text-[10px] uppercase tracking-[.1em] text-muted-foreground">
-            <span className={`relative flex size-2 ${serviceOnline ? '' : 'opacity-70'}`}>
-              {serviceOnline && <span className="status-pulse absolute inline-flex size-2 rounded-full bg-[#378069]" />}
-              <span className={`relative inline-flex size-2 rounded-full ${serviceOnline ? 'bg-[#378069]' : 'bg-[#c48158]'}`} />
-            </span>
-            <span data-testid="status-service">{serviceOnline ? 'Service online' : health.isLoading ? 'Checking service' : 'Service unavailable'}</span>
-          </div>
+    <main className="access-screen">
+      <div className="access-frame">
+        <header className="access-header">
+          <img src="/assets/logo.png" alt="Chinese Auto Bot" className="brand-logo" />
+          <span className="brand-divider" />
+          <div className="brand-wordmark"><b>CHINESE</b><strong>AUTO BOT</strong></div>
+          <ShieldCheck className="secure-mark" size={22} aria-label="Secure" />
+          <button type="button" className="menu-button" aria-label="Menu" onClick={() => setLocation('/test-key')}>
+            <span /><span /><span />
+          </button>
         </header>
 
-        <section className="grid flex-1 items-center gap-12 py-12 lg:grid-cols-[minmax(280px,.82fr)_minmax(450px,1.18fr)] lg:gap-20 lg:py-20">
-          <div className="enter max-w-[440px]">
-            <div className="mono mb-6 flex items-center gap-3 text-[10px] uppercase tracking-[.2em] text-[#3f7566]">
-              <span className="h-px w-8 bg-[#3f7566]" />
-              Secure verification station
-            </div>
-            <h1 className="display text-[clamp(3rem,6vw,5.6rem)] font-semibold leading-[.98] tracking-[-.065em] text-[#263e3b]">
-              One key.
-              <br />
-              One clear
-              <br />
-              <span className="relative inline-block text-primary">
-                answer<span className="absolute -bottom-2 left-0 h-[3px] w-[86%] bg-primary/35" />.
-              </span>
-            </h1>
-            <p className="mt-7 max-w-[370px] text-[15px] leading-7 text-muted-foreground">
-              Verify a candidate access key against the live service. The key is checked once, then cleared from this station.
-            </p>
-
-            <div className="mt-12 flex max-w-[380px] items-center gap-4 border-t border-foreground/10 pt-5">
-              <div className="grid size-10 shrink-0 place-items-center rounded-full bg-[#dce8df] text-[#376c5d]">
-                <ShieldCheck size={19} strokeWidth={1.7} />
-              </div>
-              <div>
-                <p className="text-[13px] font-semibold text-foreground">Private by design</p>
-                <p className="mt-1 text-[12px] leading-5 text-muted-foreground">Never saved, logged, or shown in the result.</p>
-              </div>
-              <div className="ml-auto hidden items-center gap-1.5 text-[#638c7e] sm:flex">
-                <span className="h-1 w-1 rounded-full bg-current" />
-                <span className="h-1 w-1 rounded-full bg-current opacity-60" />
-                <span className="h-1 w-1 rounded-full bg-current opacity-30" />
-              </div>
-            </div>
-          </div>
-
-          <div className="enter-delay">
-            <div className="relative mx-auto w-full max-w-[610px] overflow-hidden rounded-[20px] border border-[#d5d2c8] bg-[#fbfaf6] shadow-[0_24px_70px_rgba(50,54,49,.10)]">
-              <div className="flex items-center justify-between border-b border-[#e7e4dc] px-6 py-5 sm:px-8">
-                <div className="flex items-center gap-3">
-                  <div className="grid size-9 place-items-center rounded-lg bg-[#f1e7db] text-[#b45c3d]">
-                    <Activity size={17} />
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-semibold tracking-[-.01em]">Key verification</p>
-                    <p className="mono mt-1 text-[9px] uppercase tracking-[.14em] text-muted-foreground">Live endpoint · POST /api/verify-key</p>
-                  </div>
-                </div>
-                <span className="mono text-[10px] text-muted-foreground">01 / 01</span>
-              </div>
-
-              <form onSubmit={submitKey} className="px-6 pb-7 pt-7 sm:px-8 sm:pb-8">
-                <label htmlFor="candidate-key" className="mb-3 block text-[13px] font-semibold">Candidate key</label>
-                <div className={`group flex h-[58px] items-center rounded-xl border bg-white/70 px-4 transition-colors focus-within:border-[#6d998a] focus-within:ring-4 focus-within:ring-[#4b816e]/10 ${key.length > 128 ? 'border-destructive' : 'border-[#dcd9d0]'}`}>
-                  <LockKeyhole size={17} className="mr-3 shrink-0 text-[#81918a]" strokeWidth={1.8} />
-                  <input
-                    id="candidate-key"
-                    data-testid="input-candidate-key"
-                    className="min-w-0 flex-1 bg-transparent py-3 font-mono text-[14px] tracking-[.04em] text-foreground outline-none placeholder:font-sans placeholder:text-[13px] placeholder:tracking-normal placeholder:text-[#a2a39d]"
-                    type={showKey ? 'text' : 'password'}
-                    autoComplete="off"
-                    spellCheck={false}
-                    maxLength={129}
-                    value={key}
-                    onChange={(event) => {
-                      setKey(event.target.value);
-                      resetResult();
-                    }}
-                    placeholder="Paste or type an access key"
-                    aria-describedby="key-guidance"
-                    disabled={isBusy}
-                  />
-                  {key.length > 0 && (
-                    <button
-                      type="button"
-                      data-testid="button-toggle-key-visibility"
-                      aria-label={showKey ? 'Hide key' : 'Show key'}
-                      onClick={() => setShowKey((visible) => !visible)}
-                      className="ml-2 rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                      {showKey ? <EyeOff size={17} /> : <Eye size={17} />}
-                    </button>
-                  )}
-                </div>
-                <div id="key-guidance" className="mt-2 flex min-h-5 items-center justify-between text-[11px] text-muted-foreground">
-                  <span>1–128 characters · Input is cleared on submit</span>
-                  <span className={`mono ${key.length > 128 ? 'text-destructive' : ''}`}>{key.length}/128</span>
-                </div>
-
-                <button
-                  type="submit"
-                  data-testid="button-verify-key"
-                  disabled={!key.length || key.length > 128 || isBusy}
-                  className="mt-5 flex h-[52px] w-full items-center justify-center gap-2.5 rounded-xl bg-[#c45d3e] px-5 text-[13px] font-semibold text-[#fff9ef] shadow-[0_5px_14px_rgba(177,82,55,.17)] transition-[background-color,transform,opacity] hover:bg-[#ad4f34] active:translate-y-px disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isBusy ? (
-                    <>
-                      <span className="size-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />
-                      Checking against service…
-                    </>
-                  ) : (
-                    <>
-                      Verify candidate key
-                      <ArrowUpRight size={16} strokeWidth={2} />
-                    </>
-                  )}
-                </button>
-              </form>
-
-              <div className="mx-6 border-t border-dashed border-[#ddd9d0] sm:mx-8" />
-
-              <div className="px-6 py-6 sm:px-8">
-                <div className="mb-4 flex items-center justify-between">
-                  <p className="mono text-[9px] uppercase tracking-[.17em] text-muted-foreground">Verification result</p>
-                  <span className="mono text-[9px] text-[#999a93]">NO KEY DATA RETURNED</span>
-                </div>
-                {isBusy ? (
-                  <div className="rounded-xl border border-[#d8e3db] bg-[#f0f5f0] px-4 py-4" role="status" aria-live="polite" data-testid="status-verification-loading">
-                    <div className="flex items-center gap-3">
-                      <RefreshCw size={16} className="animate-spin text-[#4d806e]" />
-                      <div className="flex-1">
-                        <p className="text-[13px] font-semibold text-[#315b4d]">Request in progress</p>
-                        <p className="mt-1 text-[11px] text-[#638174]">Waiting for the service to confirm.</p>
-                      </div>
-                      <span className="mono text-[10px] text-[#638174]">LIVE</span>
-                    </div>
-                    <div className="mt-4 h-[2px] overflow-hidden rounded-full bg-[#d4e3d8]">
-                      <div className="scan-line h-full w-full bg-[#5b947c]" />
-                    </div>
-                  </div>
-                ) : result ? (
-                  <ResultPanel result={result} onRetry={() => { setResult(null); verification.reset(); }} />
-                ) : (
-                  <div className="flex min-h-[88px] items-center gap-3 rounded-xl border border-[#e2dfd7] bg-[#f7f5ef] px-4 py-4" data-testid="status-verification-idle">
-                    <div className="grid size-9 shrink-0 place-items-center rounded-full border border-[#dedbd2] bg-[#fbfaf6] text-[#999b92]">
-                      <span className="mono text-[12px]">—</span>
-                    </div>
-                    <div>
-                      <p className="text-[13px] font-medium text-[#60665f]">Awaiting a candidate</p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">Your result will appear here.</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-3 bg-[#f1efe8] px-6 py-4 text-[10px] text-muted-foreground sm:px-8">
-                <div className="flex items-center gap-2">
-                  {serviceOnline ? <CircleCheck size={13} className="text-[#49816d]" /> : <WifiOff size={13} className="text-[#b16a4a]" />}
-                  <span data-testid="text-health-detail">{health.isLoading ? 'Connecting to verification service' : serviceOnline ? `Service status: ${health.data?.status}` : 'Could not confirm service availability'}</span>
-                </div>
-                <button
-                  type="button"
-                  data-testid="button-refresh-health"
-                  onClick={() => void health.refetch()}
-                  disabled={health.isFetching}
-                  className="inline-flex items-center gap-1.5 rounded px-1 py-1 font-medium text-[#4f6f63] transition-colors hover:text-[#263e3b] disabled:opacity-50"
-                >
-                  <RefreshCw size={11} className={health.isFetching ? 'animate-spin' : ''} />
-                  Refresh status
-                </button>
-              </div>
-            </div>
-
-            <div className="mono mt-5 flex items-center justify-center gap-2 text-[9px] uppercase tracking-[.13em] text-muted-foreground/80">
-              <Check size={12} className="text-[#54816f]" />
-              Candidate data is not retained by this interface
-            </div>
+        <section className="access-hero">
+          <img src="/assets/hero.jpg" alt="Armored Chinese Auto Bot trading assistant" className="hero-image" />
+          <div className="hero-copy">
+            <h1>Chinese<br /><em>Auto Bot</em></h1>
+            <p>AI-Powered Trading<br />Automation</p>
+            <ul>
+              <li>Smart Analysis <CheckCircle2 /></li>
+              <li>Auto Trading <CheckCircle2 /></li>
+              <li>Faster Execution <CheckCircle2 /></li>
+            </ul>
           </div>
         </section>
 
-        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-foreground/10 py-4 text-[10px] text-muted-foreground">
-          <span className="mono uppercase tracking-[.12em]">Chinese Auto Bot · Operations console</span>
-          <span className="mono flex items-center gap-2 uppercase tracking-[.08em]"><span className="size-1.5 rounded-full bg-[#6b9682]" /> Private session</span>
+        <section className="key-panel">
+          <h2><KeyRound size={23} />Access Key</h2>
+          <form onSubmit={submit}>
+            <label className={`key-input ${error ? 'has-error' : ''}`}>
+              <KeyRound size={17} aria-hidden="true" />
+              <span />
+              <input
+                aria-label="Access key"
+                data-testid="input-access-key"
+                value={key}
+                onChange={(e) => { setKey(e.target.value); setError(''); }}
+                placeholder="Enter your access key…"
+                autoComplete="off"
+                maxLength={128}
+                disabled={pending}
+              />
+            </label>
+            {error && <p className="key-error" role="alert"><CircleAlert size={15} />{error}</p>}
+            <button className="activate-button" type="submit" data-testid="button-activate" disabled={!key.trim() || pending}>
+              <Activity size={24} />
+              <span>{pending ? 'Verifying…' : 'Activate Bot'}</span>
+              <ArrowRight size={19} />
+            </button>
+          </form>
+        </section>
+
+        <section className="feature-grid" aria-label="Features">
+          <Feature icon={<Brain />} title="AI Analysis" detail="Smarter Decisions" />
+          <Feature icon={<Zap />} title="Auto Execution" detail="Instant Trades" />
+          <Feature icon={<ShieldCheck />} title="High Security" detail="Your Data Safe" />
+          <Feature icon={<ChartNoAxesColumnIncreasing />} title="24/7 Trading" detail="Non-Stop Operations" />
+        </section>
+        <footer className="access-footer">
+          <a href="#help" onClick={(e) => e.preventDefault()}><Headphones />Help &amp; Support</a>
+          <i />
+          <a href="#terms" onClick={(e) => e.preventDefault()}><FileText />Terms &amp; Risk Disclosure</a>
         </footer>
+        <div className="health-note" data-testid="status-api-health">
+          <span className={online ? 'health-dot online' : 'health-dot'} />
+          {health.isLoading ? 'Connecting to service' : online ? 'Service connected' : 'Service status unavailable'}
+        </div>
       </div>
     </main>
   );
 }
 
-function ResultPanel({
-  result,
-  onRetry,
-}: {
-  result: 'accepted' | 'rejected' | 'unavailable' | 'limited';
-  onRetry: () => void;
-}) {
-  const content = {
-    accepted: {
-      icon: <CircleCheck size={21} strokeWidth={1.8} />,
-      title: 'Key accepted',
-      description: 'This candidate key is valid for the service.',
-      cls: 'border-[#c8ddd0] bg-[#edf5ef] text-[#315c4b]',
-      iconCls: 'bg-[#dcebe0] text-[#428066]',
-      testId: 'status-key-accepted',
-    },
-    rejected: {
-      icon: <CircleX size={21} strokeWidth={1.8} />,
-      title: 'Key not accepted',
-      description: 'The service did not recognize this candidate key.',
-      cls: 'border-[#ead4cc] bg-[#fbf0eb] text-[#74483b]',
-      iconCls: 'bg-[#f3dfd6] text-[#bb6042]',
-      testId: 'status-key-rejected',
-    },
-    unavailable: {
-      icon: <WifiOff size={19} strokeWidth={1.8} />,
-      title: 'Service unavailable',
-      description: 'The check could not be completed. Confirm service availability and try again.',
-      cls: 'border-[#e4d4c5] bg-[#f8f1e9] text-[#77543c]',
-      iconCls: 'bg-[#efe0cf] text-[#a16d42]',
-      testId: 'status-service-unavailable',
-    },
-    limited: {
-      icon: <CircleAlert size={20} strokeWidth={1.8} />,
-      title: 'Too many attempts',
-      description: 'The service is rate limiting checks. Wait a moment before trying again.',
-      cls: 'border-[#e5dabc] bg-[#f8f4e7] text-[#705c30]',
-      iconCls: 'bg-[#ede5c9] text-[#987b38]',
-      testId: 'status-rate-limited',
-    },
-  }[result];
+function Feature({ icon, title, detail }: { icon: ReactNode; title: string; detail: string }) {
+  return <article className="feature-card"><div className="feature-icon">{icon}</div><strong>{title}</strong><span>{detail}</span></article>;
+}
 
+function Login() {
+  const [, setLocation] = useLocation();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(true);
   return (
-    <div className={`flex min-h-[88px] items-start gap-3 rounded-xl border px-4 py-4 ${content.cls}`} role="status" aria-live="polite" data-testid={content.testId}>
-      <div className={`grid size-9 shrink-0 place-items-center rounded-full ${content.iconCls}`}>{content.icon}</div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-semibold">{content.title}</p>
-        <p className="mt-1 text-[11px] leading-[1.55] opacity-80">{content.description}</p>
-      </div>
-      {(result === 'unavailable' || result === 'limited') && (
-        <button
-          type="button"
-          data-testid="button-retry-verification"
-          onClick={onRetry}
-          className="mt-1 inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold transition-colors hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          Dismiss
-        </button>
-      )}
-    </div>
+    <main className="login-screen">
+      <div className="login-art" aria-hidden="true"><svg viewBox="0 0 390 728"><polygon points="54,571 90,571 74,590" fill="#1b202d" /><polyline points="0,623 58,604 117,631 176,594 232,620 293,585 352,610 390,590" /></svg></div>
+      <header className="login-header"><img src="/assets/logo2.png" alt="Chinese Auto Bot" /><div><b>CHINESE</b><strong>AUTO BOT</strong></div></header>
+      <h1>Sign In To Your Account</h1>
+      <p className="login-subtitle">Use your Chinese Auto Bot account to continue</p>
+      <form className="login-card" onSubmit={(e) => { e.preventDefault(); setLocation('/countdown'); }}>
+        <label className="floating-field"><span>Email Address</span><input type="email" autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+        <label className="floating-field"><span>Account Password</span><input type={showPassword ? 'text' : 'password'} autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff /> : <Eye />}</button>
+        </label>
+        <div className="login-options"><button type="button" className={`remember-box ${remember ? 'checked' : ''}`} aria-label="Remember me" aria-pressed={remember} onClick={() => setRemember(!remember)}>{remember && <Check size={20} />}</button><span>Remember me</span><a href="#forgot" onClick={(e) => e.preventDefault()}>Forgot your password?</a></div>
+        <button className="signin-button" type="submit">Sign in <span><ChevronRight /></span></button>
+      </form>
+      <div className="flag-rule" />
+      <p className="risk-copy">Risk warning: trading involves significant risk. Signals on this platform use a simulated DEMO feed.</p>
+      <p className="copyright">© Chinese Auto Bot, 2026. All rights reserved.</p>
+    </main>
   );
 }
 
-function Router() {
+function Countdown({ second = false }: { second?: boolean }) {
+  const [, setLocation] = useLocation();
+  const [seconds, setSeconds] = useState(30);
+  useEffect(() => {
+    const timer = window.setInterval(() => setSeconds((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  useEffect(() => {
+    if (seconds === 0 && !second) {
+      const timeout = window.setTimeout(() => setLocation('/pin'), 600);
+      return () => window.clearTimeout(timeout);
+    }
+    return undefined;
+  }, [seconds, second, setLocation]);
+  const elapsed = 30 - seconds;
+  const activeIndex = thresholds.findIndex((threshold) => elapsed < threshold);
+  const pill = activeIndex < 0 ? 'READY' : pillLabels[activeIndex];
   return (
-    // Keep a shared shell (sidebar, navbar) outside the boundary so it
-    // survives a page crash.
-    <RoutedErrorBoundary>
-      <Switch>
-        <Route path="/" component={Home} />
-        <Route component={NotFound} />
-      </Switch>
-    </RoutedErrorBoundary>
+    <main className="countdown-screen">
+      <div className="count-glow" /><div className="count-dots" />
+      <svg className="circuit-lines" viewBox="0 0 390 693" aria-hidden="true">
+        <g><path d="M0 41 12 54v66l28 28v84l-18 20v48M0 150l28 28v67M6 240v90l28 28" /><circle cx="62" cy="150" r="1.6" /><circle cx="32" cy="200" r="1.6" /><circle cx="60" cy="290" r="1.6" /></g>
+        <g transform="translate(390 0) scale(-1 1)"><path d="M0 41 12 54v66l28 28v84l-18 20v48M0 150l28 28v67M6 240v90l28 28" /><circle cx="62" cy="150" r="1.6" /><circle cx="32" cy="200" r="1.6" /><circle cx="60" cy="290" r="1.6" /></g>
+      </svg>
+      <div className="system-active"><i />SYSTEM ACTIVE</div>
+      <h1>Chinese bot</h1><div className="title-underline" />
+      <svg className="count-ring" viewBox="0 0 300 300" aria-hidden="true">
+        <circle cx="150" cy="150" r="110" className="ring-dotted" />
+        <circle cx="150" cy="150" r="101.5" className="ring-thin" />
+        <circle cx="150" cy="150" r="80" className="ring-core" />
+        <circle cx="150" cy="150" r="87" className="ring-track" />
+        <circle cx="150" cy="150" r="87" className="ring-progress" style={{ strokeDashoffset: 546.64 * (seconds / 30) }} />
+      </svg>
+      <div className="seconds">{seconds}</div><div className="seconds-label">SEC</div>
+      <section className="scan-panel">
+        <div className="scan-heading"><i />SCAN PROTOCOL</div>
+        {scanLabels.map((label, index) => {
+          const done = elapsed >= thresholds[index];
+          const active = index === activeIndex;
+          return <div className={`scan-row ${done ? 'done' : active ? 'active' : ''}`} key={label}>
+            <span className="scan-icon">{done ? <Check size={18} /> : index === 4 && !active ? <Sparkles size={16} /> : <i />}</span>
+            <span>{label}</span>{active && <b />}
+          </div>;
+        })}
+      </section>
+      <div className="status-pill"><i />{pill}</div>
+      <svg className="floor-rings" viewBox="0 0 390 60" aria-hidden="true"><ellipse cx="195" cy="42" rx="125" ry="20" /><ellipse cx="195" cy="42" rx="100" ry="15" /><ellipse cx="195" cy="42" rx="70" ry="9" /></svg>
+      {second && <div className="countdown-final">Signal sequence complete</div>}
+    </main>
   );
+}
+
+function Pin() {
+  const [, setLocation] = useLocation();
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState(false);
+  return <main className="pin-screen">
+    <h1>Welcome back!</h1>
+    <p className="pin-intro">Please enter the PIN-Code</p>
+    <label className={`pin-field ${error ? 'pin-error' : ''}`}><span>Code</span><input aria-label="PIN code" type="text" inputMode="numeric" maxLength={6} autoComplete="off" placeholder="Enter 6-digit code…" value={pin} onChange={(e) => { setPin(e.target.value.replace(/\D/g, '').slice(0, 6)); setError(false); }} /></label>
+    <p className="pin-help">Enter 6-digit pin code</p>
+    <button className="pin-submit" type="button" onClick={() => pin.length === 6 ? setLocation('/countdown-2') : setError(true)}>Sign in <span><ChevronRight /></span></button>
+    {error && <p className="pin-validation" role="alert">Please enter a 6-digit code.</p>}
+    <button className="go-back" type="button" onClick={() => setLocation('/login')}>Go back</button>
+  </main>;
+}
+
+function TestKey() {
+  const [, setLocation] = useLocation();
+  const health = useHealthCheck();
+  const verify = useVerifyKey();
+  const [value, setValue] = useState('');
+  const [result, setResult] = useState<'accepted' | 'rejected' | 'error' | null>(null);
+  const online = !!health.data && !health.isError && !['down', 'unavailable', 'offline', 'error'].includes(health.data.status.toLowerCase());
+  function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!value.trim() || verify.isPending) return;
+    const candidate = value;
+    setValue('');
+    setResult(null);
+    verify.mutate({ data: { key: candidate } }, {
+      onSuccess: (response) => setResult(response.ok ? 'accepted' : 'rejected'),
+      onError: () => setResult('error'),
+    });
+  }
+  return <main className="test-screen"><section className="test-card"><button className="test-back" type="button" onClick={() => setLocation('/')}>← Chinese Auto Bot</button><div className="test-eyebrow"><LockKeyhole size={16} />TEMPORARY API TOOL</div><h1>Access key check</h1><p>Standalone live check. Only the access key is sent to the verification endpoint.</p>
+    <form onSubmit={submit}><label htmlFor="test-key">Candidate key</label><input id="test-key" data-testid="input-test-key" value={value} maxLength={128} autoComplete="off" onChange={(e) => { setValue(e.target.value); setResult(null); }} placeholder="Enter an access key" /><button type="submit" disabled={!value.trim() || verify.isPending}>{verify.isPending ? 'Checking…' : 'Verify key'}<ArrowRight size={16} /></button></form>
+    {result && <div className={`test-result ${result}`} role="status">{result === 'accepted' ? 'Key accepted' : result === 'rejected' ? 'Key not accepted' : 'Verification service unavailable'}</div>}
+    <div className="test-service"><span className={online ? 'health-dot online' : 'health-dot'} />{health.isLoading ? 'Checking service…' : online ? `Service status: ${health.data?.status}` : 'Service unavailable'}<button type="button" onClick={() => void health.refetch()} disabled={health.isFetching}>Refresh</button></div>
+  </section></main>;
+}
+
+function Router() {
+  return <RoutedErrorBoundary><Switch>
+    <Route path="/" component={Home} />
+    <Route path="/login" component={Login} />
+    <Route path="/countdown" component={() => <Countdown />} />
+    <Route path="/pin" component={Pin} />
+    <Route path="/countdown-2" component={() => <Countdown second />} />
+    <Route path="/test-key" component={TestKey} />
+    <Route component={NotFound} />
+  </Switch></RoutedErrorBoundary>;
 }
 
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {
@@ -350,16 +269,7 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
 }
 
 function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Router /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>;
 }
 
 export default App;

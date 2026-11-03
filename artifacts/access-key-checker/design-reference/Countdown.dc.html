@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Chinese Bot Countdown</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,500;0,700;1,800&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 693px; overflow: hidden; background: linear-gradient(180deg, #000c11 0%, #000a11 55%, #011723 100%); font-family: 'Exo 2', system-ui, sans-serif; color: #ffffff">
+
+<div style="position: absolute; left: 35px; top: 71px; width: 320px; height: 320px; border-radius: 50%; background: radial-gradient(circle, rgba(0, 255, 230, 0.12) 0%, rgba(0, 255, 230, 0) 70%)"></div>
+<div style="position: absolute; right: -50px; top: -30px; width: 220px; height: 220px; border-radius: 50%; opacity: 0.35; background-image: radial-gradient(rgba(0, 229, 255, 0.35) 1px, transparent 1.3px); background-size: 5px 5px; -webkit-mask-image: radial-gradient(circle at 30% 70%, #000 0%, transparent 70%); mask-image: radial-gradient(circle at 30% 70%, #000 0%, transparent 70%)"></div>
+
+<svg aria-hidden="true" width="390" height="693" viewBox="0 0 390 693" fill="none" style="position: absolute; left: 0; top: 0; pointer-events: none">
+<g stroke="#0d8aa3" stroke-opacity="0.55" stroke-width="1"><path d="M0 41 L12 54 L12 120 L40 148 L40 232 L22 252 L22 300"></path><path d="M0 150 L28 178 L28 245"></path><path d="M6 240 L6 330 L34 358"></path></g>
+<g transform="translate(390 0) scale(-1 1)" stroke="#0d8aa3" stroke-opacity="0.55" stroke-width="1"><path d="M0 41 L12 54 L12 120 L40 148 L40 232 L22 252 L22 300"></path><path d="M0 150 L28 178 L28 245"></path><path d="M6 240 L6 330 L34 358"></path></g>
+<g fill="#00e5ff" fill-opacity="0.7"><circle cx="62" cy="150" r="1.6"></circle><circle cx="32" cy="200" r="1.6"></circle><circle cx="328" cy="150" r="1.6"></circle><circle cx="358" cy="200" r="1.6"></circle><circle cx="60" cy="290" r="1.6"></circle><circle cx="330" cy="300" r="1.6"></circle></g>
+</svg>
+
+<div style="position: absolute; left: 31px; right: 42px; top: 38px; height: 22px; display: flex; align-items: center">
+<div style="width: 60px; height: 1px; background: linear-gradient(90deg, rgba(25, 219, 232, 0), #19dbe8)"></div>
+<div style="width: 10px; height: 10px; margin-left: 17px; background: #05fc8b; transform: rotate(45deg); box-shadow: 0 0 8px #05fc8b"></div>
+<span style="margin-left: 16px; font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 2.6px; color: #02fd76">SYSTEM ACTIVE</span>
+<div style="flex: 1; margin-left: 11px; height: 1px; background: linear-gradient(90deg, #19dbe8, rgba(25, 219, 232, 0))"></div>
+</div>
+
+<h1 style="position: absolute; left: 0; right: 0; top: 62px; margin: 0; text-align: center; font-family: 'Exo 2', sans-serif; font-style: italic; font-weight: 800; font-size: 52px; line-height: 54px; background: linear-gradient(180deg, #ffc107 0%, #ff7f01 100%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 8px rgba(255, 127, 1, 0.5))">Chinese bot</h1>
+<div style="position: absolute; left: 25px; right: 25px; top: 112px; height: 2px; background: linear-gradient(90deg, rgba(255, 127, 1, 0), #ff7f01, rgba(255, 127, 1, 0)); box-shadow: 0 0 8px rgba(255, 127, 1, 0.6)"></div>
+
+<svg aria-hidden="true" width="300" height="300" viewBox="0 0 300 300" fill="none" style="position: absolute; left: 45px; top: 81px">
+<circle cx="150" cy="150" r="110" stroke="#1ad6e6" stroke-opacity="0.45" stroke-width="5" stroke-dasharray="1 2.4"></circle>
+<circle cx="150" cy="150" r="101.5" stroke="#19dbe8" stroke-width="1.5" style="filter: drop-shadow(0 0 4px #00e5ff)"></circle>
+<circle cx="150" cy="150" r="80" fill="#00201f"></circle>
+<circle cx="150" cy="150" r="87" stroke="#0b3a40" stroke-width="16"></circle>
+<circle cx="150" cy="150" r="87" stroke="#14f0ff" stroke-width="16" stroke-linecap="round" transform="rotate(-90 150 150)" style="stroke-dasharray: 546.64; stroke-dashoffset: {{ ringOffset }}; opacity: {{ ringOpacity }}; transition: stroke-dashoffset 1s linear; filter: drop-shadow(0 0 6px #00e5ff)"></circle>
+</svg>
+<div style="position: absolute; left: 0; right: 0; top: 195px; text-align: center; font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 62px; line-height: 64px; color: #ffffff; text-shadow: 0 0 14px rgba(0, 255, 255, 0.6)">{{ t }}</div>
+<div style="position: absolute; left: 0; right: 0; top: 258px; text-align: center; font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 14px; line-height: 16px; letter-spacing: 2.5px; color: #05faf9">SEC</div>
+
+<div style="position: absolute; left: 14px; right: 14px; top: 357px; height: 232px; box-sizing: border-box; overflow: hidden; border: 1.5px solid #1ee8e0; border-radius: 16px; background: linear-gradient(180deg, #021b1a 0%, #010f12 30%); box-shadow: 0 0 16px rgba(0, 255, 230, 0.3)">
+<div style="height: 36px; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding-left: 19px; background: rgba(0, 255, 150, 0.12); border-bottom: 1px solid #10b89a">
+<span style="width: 11px; height: 11px; border-radius: 50%; background: #00f9bb; box-shadow: 0 0 8px #00f9bb"></span>
+<span style="font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 2.2px; color: #00e373">SCAN PROTOCOL</span>
+</div>
+<sc-for list="{{ steps }}" as="step" hint-placeholder-count="5">
+<div style="display: flex; align-items: center; height: 37px; box-sizing: border-box; padding-left: 21px; border-bottom: 1px solid #05252a">
+<div style="width: 29px; height: 29px; box-sizing: border-box; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: {{ step.iconBg }}; border: 1px solid {{ step.iconBorder }}">
+<sc-if value="{{ step.isDone }}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#14e8b4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></sc-if>
+<sc-if value="{{ step.isDot }}" hint-placeholder-val="{{ true }}"><span style="width: 10px; height: 10px; border-radius: 50%; background: {{ step.dotColor }}; box-shadow: {{ step.dotGlow }}"></span></sc-if>
+<sc-if value="{{ step.isStar }}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="#4b5e69" stroke="#4b5e69" stroke-width="2" stroke-linejoin="round"><path d="M12 3 L14.5 9.5 L21 12 L14.5 14.5 L12 21 L9.5 14.5 L3 12 L9.5 9.5 Z"></path></svg></sc-if>
+</div>
+<span style="flex: 1; margin-left: 20px; font-size: 15px; color: {{ step.textColor }}; font-weight: {{ step.weight }}">{{ step.label }}</span>
+<sc-if value="{{ step.isActive }}" hint-placeholder-val="{{ false }}"><span style="width: 9px; height: 9px; margin-right: 25px; border-radius: 50%; background: #ff8f02; box-shadow: 0 0 8px #ff8f02"></span></sc-if>
+</div>
+</sc-for>
+</div>
+
+<div style="position: absolute; left: 62px; width: 20px; top: 626px; height: 1px; background: linear-gradient(90deg, rgba(25, 219, 232, 0), #19dbe8)"></div>
+<div style="position: absolute; left: 308px; width: 20px; top: 626px; height: 1px; background: linear-gradient(90deg, #19dbe8, rgba(25, 219, 232, 0))"></div>
+<div style="position: absolute; left: 82px; top: 609px; width: 227px; height: 34px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding-left: 20px; border: 1.5px solid #00f5e5; border-radius: 17px; background: #001107; box-shadow: 0 0 14px rgba(0, 245, 229, 0.3)">
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #fe8001; box-shadow: 0 0 8px #fe8001"></span>
+<span style="font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 1.3px; color: #0bff77">{{ pillText }}</span>
+</div>
+
+<svg aria-hidden="true" width="390" height="60" viewBox="0 0 390 60" fill="none" style="position: absolute; left: 0; top: 633px; pointer-events: none">
+<ellipse cx="195" cy="42" rx="125" ry="20" stroke="#19dbe8" stroke-opacity="0.35"></ellipse>
+<ellipse cx="195" cy="42" rx="100" ry="15" stroke="#19dbe8" stroke-opacity="0.5"></ellipse>
+<ellipse cx="195" cy="42" rx="70" ry="9" stroke="#19dbe8" stroke-opacity="0.7" style="filter: drop-shadow(0 0 4px #00e5ff)"></ellipse>
+</svg>
+
+<a id="to-pin" href="Pin.dc.html" style="position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0" aria-hidden="true" tabindex="-1"></a>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":693}}'>
+class Component extends DCLogic {
+componentDidMount() {
+this.setState({ t: 30 });
+this.timer = setInterval(() => {
+const t = this.state && typeof this.state.t === 'number' ? this.state.t : 30;
+if (t <= 0) { clearInterval(this.timer); return; }
+this.setState({ t: t - 1 });
+}, 1000);
+}
+componentWillUnmount() {
+clearInterval(this.timer);
+}
+componentDidUpdate(prevProps, prevState) {
+const prevT = prevState && typeof prevState.t === 'number' ? prevState.t : 30;
+const t = this.state && typeof this.state.t === 'number' ? this.state.t : 30;
+if (prevT > 0 && t <= 0) {
+setTimeout(() => {
+const el = document.getElementById('to-pin');
+if (el) el.click();
+}, 600);
+}
+}
+renderVals() {
+const labels = ['Connecting to neural engine…', 'Verifying credentials…', 'Scanning markets…', 'Activating signal feed…', 'Generating login token…'];
+const pills = ['CONNECTING…', 'VERIFYING…', 'SCANNING MARKETS…', 'ACTIVATING FEED…', 'GENERATING TOKEN…'];
+const thr = [3, 8, 18, 25, 30];
+const t = this.state && typeof this.state.t === 'number' ? this.state.t : 30;
+const e = 30 - t;
+const activeIdx = thr.findIndex((x) => e < x);
+const steps = labels.map((label, i) => {
+const done = e >= thr[i];
+const active = i === activeIdx;
+const pending = !done && !active;
+return {
+label,
+isDone: done,
+isActive: active,
+isDot: active || (pending && i < 4),
+isStar: pending && i === 4,
+iconBg: done ? '#012c21' : active ? '#4b1d00' : '#0a1d22',
+iconBorder: done ? '#00a468' : active ? '#ffb000' : '#1d343f',
+dotColor: active ? '#fde245' : '#4b5e69',
+dotGlow: active ? '0 0 8px #ffb000' : 'none',
+textColor: done ? '#03f0d9' : active ? '#f0eff0' : '#728690',
+weight: active ? 700 : 500
+};
+});
+return {
+t,
+steps,
+ringOffset: 546.64 * (1 - t / 30),
+ringOpacity: t > 0 ? 1 : 0,
+pillText: activeIdx < 0 ? 'READY' : pills[activeIdx]
+};
+}
+}
+</script>
+</body>
+</html>
