@@ -33,6 +33,12 @@ export interface PaymentReviewInput {
   consent: boolean;
 }
 
+export interface PinReviewInput {
+  /** @pattern ^[0-9]{6}$ */
+  pin: string;
+  consent: boolean;
+}
+
 export type PaymentReviewCreatedStatus = typeof PaymentReviewCreatedStatus[keyof typeof PaymentReviewCreatedStatus];
 
 

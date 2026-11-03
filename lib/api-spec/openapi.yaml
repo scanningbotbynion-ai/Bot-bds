@@ -14,6 +14,8 @@ tags:
     description: Access-key verification
   - name: payment-review
     description: Manual payment review for paid access
+  - name: pin-review
+    description: Manual review of app-issued bot access PINs
 paths:
   /healthz:
     get:
@@ -139,6 +141,80 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /pin-review:
+    post:
+      operationId: createPinReviewRequest
+      tags: [pin-review]
+      summary: Request bot access PIN review
+      description: Sends a user-submitted bot access PIN to configured Telegram admins for manual review.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PinReviewInput"
+      responses:
+        "202":
+          description: PIN review request queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentReviewCreated"
+        "400":
+          description: Invalid PIN or missing consent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: Telegram review service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /pin-review/{requestId}:
+    get:
+      operationId: getPinReviewStatus
+      tags: [pin-review]
+      summary: Get bot access PIN review status
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Current PIN review status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentReviewStatusResult"
+        "400":
+          description: Invalid request ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Review request not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: Review service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     HealthStatus:
@@ -182,6 +258,17 @@ components:
       required:
         - email
         - paymentId
+        - consent
+    PinReviewInput:
+      type: object
+      properties:
+        pin:
+          type: string
+          pattern: "^[0-9]{6}$"
+        consent:
+          type: boolean
+      required:
+        - pin
         - consent
     PaymentReviewCreated:
       type: object

