@@ -492,11 +492,9 @@ function Pin() {
       </label>
       {error && <p className="pin-validation" role="alert">{error}</p>}
       {createPinReview.isPending && <p className="pin-review-status" role="status">Sending PIN for review…</p>}
-      {requestId && (
-        <p className={`pin-review-status ${reviewStatus.isError ? 'status-error' : ''}`} role="status">
-          {reviewStatus.isError
-            ? 'Connection interrupted. Checking the admin decision again…'
-            : 'Waiting for the admin decision. The page will continue automatically.'}
+      {requestId && reviewStatus.isError && (
+        <p className="pin-review-status status-error" role="status">
+          Connection interrupted. Checking the admin decision again…
         </p>
       )}
       <button
