@@ -119,9 +119,6 @@ export default function SignalGenerator() {
                 <span><ArrowUpRight size={17} /></span>
               </button>
               {error && <p className="signal-generator-error" role="alert">{error}</p>}
-              <p className="signal-generator-note">
-                Demo only: directions are generated locally, not from live market data. No broker is connected and no orders are placed. Not financial advice.
-              </p>
             </section>
           </div>
 
