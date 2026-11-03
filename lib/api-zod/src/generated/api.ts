@@ -35,3 +35,37 @@ export const VerifyKeyResponse = zod.object({
 })
 
 
+/**
+ * Sends the submitted email and payment ID to configured Telegram admins for review.
+ * @summary Request manual payment review
+ */
+export const createPaymentReviewRequestBodyEmailMax = 254;
+
+export const createPaymentReviewRequestBodyPaymentIdMax = 128;
+
+
+
+export const CreatePaymentReviewRequestBody = zod.object({
+  "email": zod.string().email().max(createPaymentReviewRequestBodyEmailMax),
+  "paymentId": zod.string().min(1).max(createPaymentReviewRequestBodyPaymentIdMax),
+  "consent": zod.boolean()
+})
+
+export const CreatePaymentReviewRequestResponse = zod.object({
+  "requestId": zod.string().uuid(),
+  "status": zod.enum(['pending'])
+})
+
+
+/**
+ * @summary Get payment review status
+ */
+export const GetPaymentReviewStatusParams = zod.object({
+  "requestId": zod.coerce.string().uuid()
+})
+
+export const GetPaymentReviewStatusResponse = zod.object({
+  "status": zod.enum(['pending', 'approved', 'rejected', 'expired'])
+})
+
+

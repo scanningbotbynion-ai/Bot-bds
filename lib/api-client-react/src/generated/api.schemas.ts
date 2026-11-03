@@ -22,3 +22,44 @@ export interface KeyVerificationResult {
   error?: string;
 }
 
+export interface PaymentReviewInput {
+  /** @maxLength 254 */
+  email: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  paymentId: string;
+  consent: boolean;
+}
+
+export type PaymentReviewCreatedStatus = typeof PaymentReviewCreatedStatus[keyof typeof PaymentReviewCreatedStatus];
+
+
+export const PaymentReviewCreatedStatus = {
+  pending: 'pending',
+} as const;
+
+export interface PaymentReviewCreated {
+  requestId: string;
+  status: PaymentReviewCreatedStatus;
+}
+
+export type PaymentReviewStatusResultStatus = typeof PaymentReviewStatusResultStatus[keyof typeof PaymentReviewStatusResultStatus];
+
+
+export const PaymentReviewStatusResultStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+  expired: 'expired',
+} as const;
+
+export interface PaymentReviewStatusResult {
+  status: PaymentReviewStatusResultStatus;
+}
+
+export interface ApiError {
+  error: string;
+}
+

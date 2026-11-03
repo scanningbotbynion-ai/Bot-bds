@@ -1,0 +1,1 @@
+- [Payment review data](payment-review-data.md) — collect registered email and Payment ID only; never request or forward passwords or codes.

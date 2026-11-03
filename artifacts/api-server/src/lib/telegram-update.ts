@@ -7,6 +7,15 @@ export type TelegramUpdate = {
     from?: { id?: number };
     chat?: { id?: number };
   };
+  callback_query?: {
+    id: string;
+    data?: string;
+    from?: { id?: number };
+    message?: {
+      message_id?: number;
+      chat?: { id?: number };
+    };
+  };
 };
 
 export type TelegramKeyState = {

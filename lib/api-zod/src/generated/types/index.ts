@@ -6,6 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './apiError';
 export * from './healthStatus';
 export * from './keyVerificationResult';
+export * from './paymentReviewCreated';
+export * from './paymentReviewCreatedStatus';
+export * from './paymentReviewInput';
+export * from './paymentReviewStatusResult';
+export * from './paymentReviewStatusResultStatus';
 export * from './verifyKeyInput';

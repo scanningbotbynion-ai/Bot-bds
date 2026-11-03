@@ -4,10 +4,15 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
-import { useHealthCheck, useVerifyKey } from '@workspace/api-client-react';
+import {
+  useCreatePaymentReviewRequest,
+  useGetPaymentReviewStatus,
+  useHealthCheck,
+  useVerifyKey,
+} from '@workspace/api-client-react';
 import {
   Activity, ArrowLeft, ArrowRight, AlertTriangle, Brain, ChartNoAxesColumnIncreasing, Check, CheckCircle2,
-  ChevronRight, CircleAlert, Eye, EyeOff, FileText, Headphones, KeyRound,
+  ChevronRight, CircleAlert, FileText, Headphones, KeyRound,
   LockKeyhole, ShieldCheck, Sparkles, Zap,
 } from 'lucide-react';
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
@@ -195,6 +200,10 @@ function Terms() {
             <span className="terms-notice-icon"><AlertTriangle size={20} /></span>
             <p>This is a general risk summary, not legal, tax, or investment advice, and not a complete Terms of Service. It may not cover every risk or meet requirements in your jurisdictions. Have qualified legal counsel review it before public use or live-money trading.</p>
           </div>
+          <div className="terms-notice terms-data-notice" role="note" data-testid="notice-payment-data">
+            <span className="terms-notice-icon"><ShieldCheck size={20} /></span>
+            <p>For manual payment review, the email address and Payment ID you submit are sent to authorized bot admins through Telegram. Do not submit passwords, card or bank details, or security codes. Pending details are cleared from this app after review or expiry; Telegram may retain its own copies under its policies.</p>
+          </div>
         </section>
 
         <div className="terms-body">
@@ -236,22 +245,119 @@ function Feature({ icon, title, detail }: { icon: ReactNode; title: string; deta
 function Login() {
   const [, setLocation] = useLocation();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(true);
+  const [paymentId, setPaymentId] = useState('');
+  const [consent, setConsent] = useState(false);
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [formError, setFormError] = useState('');
+  const createReview = useCreatePaymentReviewRequest();
+  const reviewStatus = useGetPaymentReviewStatus(requestId ?? '', {
+    query: {
+      enabled: Boolean(requestId),
+      refetchInterval: 2500,
+      retry: false,
+    },
+  });
+
+  useEffect(() => {
+    const status = reviewStatus.data?.status;
+    if (status === 'approved') {
+      setEmail('');
+      setPaymentId('');
+      setConsent(false);
+      setRequestId(null);
+      setLocation('/countdown');
+    } else if (status === 'rejected') {
+      setRequestId(null);
+      setFormError('Payment details were not approved. Check the email and Payment ID, then try again.');
+    } else if (status === 'expired') {
+      setRequestId(null);
+      setFormError('This review request expired. Submit your details again.');
+    }
+  }, [reviewStatus.data?.status, setLocation]);
+
+  function submitReview(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!email.trim() || !paymentId.trim() || !consent || requestId || createReview.isPending) {
+      return;
+    }
+
+    setFormError('');
+    createReview.mutate(
+      {
+        data: {
+          email: email.trim(),
+          paymentId: paymentId.trim(),
+          consent: true,
+        },
+      },
+      {
+        onSuccess: (result) => setRequestId(result.requestId),
+        onError: () => setFormError('Could not send the review request. Please try again later.'),
+      },
+    );
+  }
+
   return (
     <main className="login-screen">
       <div className="login-art" aria-hidden="true"><svg viewBox="0 0 390 728"><polygon points="54,571 90,571 74,590" fill="#1b202d" /><polyline points="0,623 58,604 117,631 176,594 232,620 293,585 352,610 390,590" /></svg></div>
       <header className="login-header"><img src="/assets/logo2.png" alt="Chinese Auto Bot" /><div><b>CHINESE</b><strong>AUTO BOT</strong></div></header>
-      <h1>Sign In To Your Account</h1>
-      <p className="login-subtitle">Use your Chinese Auto Bot account to continue</p>
-      <form className="login-card" onSubmit={(e) => { e.preventDefault(); setLocation('/countdown'); }}>
-        <label className="floating-field"><span>Email Address</span><input type="email" autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-        <label className="floating-field"><span>Account Password</span><input type={showPassword ? 'text' : 'password'} autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)} />
-          <button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff /> : <Eye />}</button>
+      <h1>Verify Your Payment</h1>
+      <p className="login-subtitle">Enter the email linked to your bot account and your Payment ID</p>
+      <form className="login-card" onSubmit={submitReview}>
+        <label className="floating-field">
+          <span>Email Address</span>
+          <input
+            type="email"
+            autoComplete="email"
+            required
+            maxLength={254}
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            aria-label="Email Address"
+          />
         </label>
-        <div className="login-options"><button type="button" className={`remember-box ${remember ? 'checked' : ''}`} aria-label="Remember me" aria-pressed={remember} onClick={() => setRemember(!remember)}>{remember && <Check size={20} />}</button><span>Remember me</span><a href="#forgot" onClick={(e) => e.preventDefault()}>Forgot your password?</a></div>
-        <button className="signin-button" type="submit">Sign in <span><ChevronRight /></span></button>
+        <label className="floating-field">
+          <span>Payment ID</span>
+          <input
+            type="text"
+            autoComplete="off"
+            required
+            maxLength={128}
+            value={paymentId}
+            onChange={(event) => setPaymentId(event.target.value)}
+            aria-label="Payment ID"
+          />
+        </label>
+        <div className="payment-consent">
+          <input
+            id="payment-review-consent"
+            type="checkbox"
+            checked={consent}
+            onChange={(event) => setConsent(event.target.checked)}
+            required
+          />
+          <div>
+            <label htmlFor="payment-review-consent">
+            I agree that my email and Payment ID will be sent to authorized bot admins on Telegram for payment review. Do not enter passwords or security codes. <Link href="/terms">Terms &amp; Disclosure</Link>
+            </label>
+          </div>
+        </div>
+        {formError && <p className="payment-feedback error" role="alert">{formError}</p>}
+        {requestId && (
+          <p className="payment-feedback pending" role="status" aria-live="polite">
+            {reviewStatus.isError
+              ? 'Connection interrupted. Still checking your request…'
+              : 'Your payment is being reviewed. This page will continue after approval.'}
+          </p>
+        )}
+        <button
+          className="signin-button"
+          type="submit"
+          disabled={!email.trim() || !paymentId.trim() || !consent || createReview.isPending || Boolean(requestId)}
+        >
+          {createReview.isPending ? 'Sending…' : requestId ? 'Waiting for review…' : 'Submit for review'}
+          <span><ChevronRight /></span>
+        </button>
       </form>
       <div className="flag-rule" />
       <p className="risk-copy">Risk warning: trading involves significant risk. Signals on this platform use a simulated DEMO feed.</p>

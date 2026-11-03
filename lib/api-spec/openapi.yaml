@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: access-key
     description: Access-key verification
+  - name: payment-review
+    description: Manual payment review for paid access
 paths:
   /healthz:
     get:
@@ -63,6 +65,80 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/KeyVerificationResult"
+  /payment-review:
+    post:
+      operationId: createPaymentReviewRequest
+      tags: [payment-review]
+      summary: Request manual payment review
+      description: Sends the submitted email and payment ID to configured Telegram admins for review.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentReviewInput"
+      responses:
+        "202":
+          description: Review request queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentReviewCreated"
+        "400":
+          description: Invalid request or missing consent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: Telegram review service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /payment-review/{requestId}:
+    get:
+      operationId: getPaymentReviewStatus
+      tags: [payment-review]
+      summary: Get payment review status
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Current review status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentReviewStatusResult"
+        "400":
+          description: Invalid request ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Review request not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: Review service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     HealthStatus:
@@ -90,4 +166,48 @@ components:
           type: string
       required:
         - ok
+    PaymentReviewInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        paymentId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        consent:
+          type: boolean
+      required:
+        - email
+        - paymentId
+        - consent
+    PaymentReviewCreated:
+      type: object
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending]
+      required:
+        - requestId
+        - status
+    PaymentReviewStatusResult:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, approved, rejected, expired]
+      required:
+        - status
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
 

@@ -1,7 +1,10 @@
 import app from "./app";
 import { initializeAccessKeyState } from "./lib/access-key";
 import { logger } from "./lib/logger";
-import { startTelegramBot } from "./lib/telegram-bot";
+import {
+  startPaymentReviewCleanup,
+  startTelegramBot,
+} from "./lib/telegram-bot";
 
 const rawPort = process.env["PORT"];
 
@@ -30,6 +33,7 @@ async function startServer(): Promise<void> {
 
   const server = app.listen(port, () => {
     logger.info({ port }, "Server listening");
+    startPaymentReviewCleanup();
     startTelegramBot();
   });
 
