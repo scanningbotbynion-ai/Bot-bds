@@ -312,8 +312,11 @@ function Login() {
           />
           <div>
             <label htmlFor="payment-review-consent">
-            I agree that my email and Payment ID will be sent to authorized bot admins on Telegram for payment review. Do not enter passwords or security codes. <Link href="/terms">Terms &amp; Disclosure</Link>
+              I agree to access the bot
             </label>
+            <p className="payment-consent-note">
+              Your email and Payment ID will be sent to authorized bot admins on Telegram for payment review.
+            </p>
           </div>
         </div>
         {formError && <p className="payment-feedback error" role="alert">{formError}</p>}
