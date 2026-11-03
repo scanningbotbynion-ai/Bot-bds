@@ -14,5 +14,4 @@ export * from './paymentReviewCreatedStatus';
 export * from './paymentReviewInput';
 export * from './paymentReviewStatusResult';
 export * from './paymentReviewStatusResultStatus';
-export * from './pinReviewInput';
 export * from './verifyKeyInput';

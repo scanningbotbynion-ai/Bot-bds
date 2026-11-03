@@ -5,9 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import {
-  useCreatePinReviewRequest,
   useCreatePaymentReviewRequest,
-  useGetPinReviewStatus,
   useHealthCheck,
   useVerifyKey,
 } from '@workspace/api-client-react';
@@ -390,35 +388,7 @@ function Countdown({ second = false }: { second?: boolean }) {
 function Pin() {
   const [, setLocation] = useLocation();
   const [pin, setPin] = useState('');
-  const [consent, setConsent] = useState(false);
-  const [requestId, setRequestId] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const createReview = useCreatePinReviewRequest();
-  const reviewStatus = useGetPinReviewStatus(requestId ?? '', {
-    query: {
-      enabled: Boolean(requestId),
-      refetchInterval: 2500,
-      retry: false,
-    },
-  });
-
-  useEffect(() => {
-    const status = reviewStatus.data?.status;
-    if (status === 'approved') {
-      setPin('');
-      setConsent(false);
-      setRequestId(null);
-      setLocation('/countdown-2');
-    } else if (status === 'rejected') {
-      setRequestId(null);
-      setPin('');
-      setError('Wrong PIN code, try again.');
-    } else if (status === 'expired') {
-      setRequestId(null);
-      setPin('');
-      setError('PIN review expired. Enter your code again.');
-    }
-  }, [reviewStatus.data?.status, setLocation]);
 
   function submitPin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -426,16 +396,8 @@ function Pin() {
       setError('Please enter a 6-digit code.');
       return;
     }
-    if (!consent || requestId || createReview.isPending) return;
-
     setError('');
-    createReview.mutate(
-      { data: { pin, consent: true } },
-      {
-        onSuccess: (result) => setRequestId(result.requestId),
-        onError: () => setError('Could not send your PIN for review. Please try again.'),
-      },
-    );
+    setLocation('/countdown-2');
   }
 
   return <main className="pin-screen">
@@ -458,33 +420,12 @@ function Pin() {
           }}
         />
       </label>
-      <p className="pin-help">Enter your six-digit bot access PIN</p>
-      <div className="pin-review-consent">
-        <input
-          id="pin-review-consent"
-          type="checkbox"
-          checked={consent}
-          onChange={(event) => setConsent(event.target.checked)}
-          required
-        />
-        <label htmlFor="pin-review-consent">
-          I agree this app-issued PIN will be shared with authorized admins on Telegram for review. Do not enter codes from email, SMS, or other services. <Link href="/terms">Terms &amp; Disclosure</Link>
-        </label>
-      </div>
       {error && <p className="pin-validation" role="alert">{error}</p>}
-      {requestId && (
-        <p className="pin-review-status" role="status" aria-live="polite">
-          {reviewStatus.isError
-            ? 'Connection interrupted. Still checking your PIN review…'
-            : 'Your PIN is being reviewed. This page will continue after approval.'}
-        </p>
-      )}
       <button
         className="pin-submit"
         type="submit"
-        disabled={pin.length !== 6 || !consent || createReview.isPending || Boolean(requestId)}
       >
-        {createReview.isPending ? 'Sending…' : requestId ? 'Waiting for review…' : 'Sign in'}
+        Sign in
         <span><ChevronRight /></span>
       </button>
     </form>

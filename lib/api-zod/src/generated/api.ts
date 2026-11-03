@@ -69,33 +69,3 @@ export const GetPaymentReviewStatusResponse = zod.object({
 })
 
 
-/**
- * Sends a user-submitted bot access PIN to configured Telegram admins for manual review.
- * @summary Request bot access PIN review
- */
-export const createPinReviewRequestBodyPinRegExp = new RegExp('^[0-9]{6}$');
-
-
-export const CreatePinReviewRequestBody = zod.object({
-  "pin": zod.string().regex(createPinReviewRequestBodyPinRegExp),
-  "consent": zod.boolean()
-})
-
-export const CreatePinReviewRequestResponse = zod.object({
-  "requestId": zod.string().uuid(),
-  "status": zod.enum(['pending'])
-})
-
-
-/**
- * @summary Get bot access PIN review status
- */
-export const GetPinReviewStatusParams = zod.object({
-  "requestId": zod.coerce.string().uuid()
-})
-
-export const GetPinReviewStatusResponse = zod.object({
-  "status": zod.enum(['pending', 'approved', 'rejected', 'expired'])
-})
-
-
