@@ -301,8 +301,8 @@ function Login() {
     <main className="login-screen">
       <div className="login-art" aria-hidden="true"><svg viewBox="0 0 390 728"><polygon points="54,571 90,571 74,590" fill="#1b202d" /><polyline points="0,623 58,604 117,631 176,594 232,620 293,585 352,610 390,590" /></svg></div>
       <header className="login-header"><img src="/assets/logo2.png" alt="Chinese Auto Bot" /><div><b>CHINESE</b><strong>AUTO BOT</strong></div></header>
-      <h1>Verify Your Payment</h1>
-      <p className="login-subtitle">Enter the email linked to your bot account and your Payment ID</p>
+      <h1>Sign In To Your Account</h1>
+      <p className="login-subtitle">Use your Chinese Auto Bot account to continue</p>
       <form className="login-card" onSubmit={submitReview}>
         <label className="floating-field">
           <span>Email Address</span>
