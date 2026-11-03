@@ -402,7 +402,7 @@ function Pin() {
 
   return <main className="pin-screen">
     <h1>Welcome back!</h1>
-    <p className="pin-intro">Please enter the access PIN sent after payment</p>
+    <p className="pin-intro">Please enter the access PIN-code we've just send you</p>
     <form className="pin-review-form" onSubmit={submitPin}>
       <label className={`pin-field ${error ? 'pin-error' : ''}`}>
         <span>Access PIN</span>
