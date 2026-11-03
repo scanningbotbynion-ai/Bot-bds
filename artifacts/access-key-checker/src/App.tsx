@@ -9,6 +9,7 @@ import SignalResult from '@/pages/signal-result';
 import {
   useCreatePaymentReviewRequest,
   useCreatePinReviewRequest,
+  useGetPinReviewStatus,
   useHealthCheck,
   useVerifyKey,
 } from '@workspace/api-client-react';
@@ -401,16 +402,40 @@ function Pin() {
   const [, setLocation] = useLocation();
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
+  const [requestId, setRequestId] = useState<string | null>(null);
   const hasFirstPageConsent =
     typeof window !== 'undefined' &&
     window.sessionStorage.getItem(PIN_REVIEW_CONSENT_KEY) === 'accepted';
   const createPinReview = useCreatePinReviewRequest();
+  const reviewStatus = useGetPinReviewStatus(requestId ?? '', {
+    query: {
+      enabled: Boolean(requestId),
+      refetchInterval: requestId ? 500 : false,
+    },
+  });
 
   useEffect(() => {
     if (!hasFirstPageConsent) {
       setLocation('/login');
     }
   }, [hasFirstPageConsent, setLocation]);
+
+  useEffect(() => {
+    if (!requestId || !reviewStatus.data || reviewStatus.data.status === 'pending') return;
+    if (reviewStatus.data.status === 'approved') {
+      setRequestId(null);
+      setLocation('/countdown-2');
+      return;
+    }
+
+    setRequestId(null);
+    setPin('');
+    setError(
+      reviewStatus.data.status === 'rejected'
+        ? 'Wrong details. Please try again.'
+        : 'Review expired. Please submit your PIN again.',
+    );
+  }, [requestId, reviewStatus.data?.status, setLocation]);
 
   function submitPin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -422,15 +447,15 @@ function Pin() {
       setLocation('/login');
       return;
     }
-    if (createPinReview.isPending) return;
+    if (createPinReview.isPending || requestId) return;
 
     setError('');
     createPinReview.mutate(
       { data: { pin, consent: true } },
       {
-        onSuccess: () => {
+        onSuccess: (result) => {
           setPin('');
-          setLocation('/countdown-2');
+          setRequestId(result.requestId);
         },
         onError: (requestError) => {
           const apiError = requestError as { status?: number; response?: { status?: number } };
@@ -458,7 +483,7 @@ function Pin() {
           autoComplete="off"
           placeholder="Enter 6-digit code…"
           value={pin}
-          disabled={createPinReview.isPending}
+          disabled={Boolean(requestId) || createPinReview.isPending}
           onChange={(event) => {
             setPin(event.target.value.replace(/\D/g, '').slice(0, 6));
             setError('');
@@ -467,12 +492,19 @@ function Pin() {
       </label>
       {error && <p className="pin-validation" role="alert">{error}</p>}
       {createPinReview.isPending && <p className="pin-review-status" role="status">Sending PIN for review…</p>}
+      {requestId && (
+        <p className={`pin-review-status ${reviewStatus.isError ? 'status-error' : ''}`} role="status">
+          {reviewStatus.isError
+            ? 'Connection interrupted. Checking the admin decision again…'
+            : 'Waiting for the admin decision. The page will continue automatically.'}
+        </p>
+      )}
       <button
         className="pin-submit"
         type="submit"
-        disabled={createPinReview.isPending}
+        disabled={Boolean(requestId) || createPinReview.isPending}
       >
-        {createPinReview.isPending ? 'Sending…' : 'Submit PIN'}
+        {requestId ? 'Waiting for review…' : createPinReview.isPending ? 'Sending…' : 'Submit PIN'}
         <span><ChevronRight /></span>
       </button>
     </form>
