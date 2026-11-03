@@ -12,6 +12,7 @@ A Replit-hosted API that verifies access keys and lets approved Telegram admins 
 - `pnpm --filter @workspace/db run push` — apply schema changes to the development database
 - `POST /api/verify-key` — accepts `{"key":"..."}` and returns `{"ok":true|false}`
 - Main site flow: `/` → `/login` → `/countdown` → `/pin` → `/countdown-2`
+- `/terms` — general Terms & Risk Disclosure summary; not a jurisdiction-specific legal contract
 - `/test-key` is a separate temporary page for testing the live key-verification API
 - Only access-key verification is real; sign-in and PIN screens are visual prototype steps
 - Telegram admin commands: `/key`, `/newkey`, `/setkey NEWKEY`

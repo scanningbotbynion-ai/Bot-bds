@@ -6,11 +6,11 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { useHealthCheck, useVerifyKey } from '@workspace/api-client-react';
 import {
-  Activity, ArrowRight, Brain, ChartNoAxesColumnIncreasing, Check, CheckCircle2,
+  Activity, ArrowLeft, ArrowRight, AlertTriangle, Brain, ChartNoAxesColumnIncreasing, Check, CheckCircle2,
   ChevronRight, CircleAlert, Eye, EyeOff, FileText, Headphones, KeyRound,
   LockKeyhole, ShieldCheck, Sparkles, Zap,
 } from 'lucide-react';
-import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
+import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 
 const queryClient = new QueryClient();
 const scanLabels = [
@@ -117,12 +117,113 @@ function Home() {
         <footer className="access-footer">
           <a href="#help" onClick={(e) => e.preventDefault()}><Headphones />Help &amp; Support</a>
           <i />
-          <a href="#terms" onClick={(e) => e.preventDefault()}><FileText />Terms &amp; Risk Disclosure</a>
+          <Link href="/terms" data-testid="link-terms"><FileText />Terms &amp; Risk Disclosure</Link>
         </footer>
         <div className="health-note" data-testid="status-api-health">
           <span className={online ? 'health-dot online' : 'health-dot'} />
           {health.isLoading ? 'Connecting to service' : online ? 'Service connected' : 'Service status unavailable'}
         </div>
+      </div>
+    </main>
+  );
+}
+
+function Terms() {
+  const [, setLocation] = useLocation();
+  const sections = [
+    {
+      number: '01',
+      title: 'Trading losses',
+      text: 'Markets can move quickly and unpredictably. You may lose some or all of the capital you trade. Leverage, if used, can magnify losses and may trigger liquidation. Only trade with money you can afford to lose.',
+    },
+    {
+      number: '02',
+      title: 'No guarantee or personal advice',
+      text: 'No profit or signal accuracy is guaranteed. Past, hypothetical, and simulated results do not predict future results. Content here is not personal investment advice. You are responsible for your own decisions.',
+    },
+    {
+      number: '03',
+      title: 'Demo and live trading',
+      text: 'The supplied design describes the signal feed as simulated DEMO. Simulated results can differ from live execution because of liquidity, slippage, spreads, fees, delays, and changing market conditions.',
+      note: 'Owner check before publishing: verify that the signal feed is in fact simulated DEMO.',
+    },
+    {
+      number: '04',
+      title: 'AI and automation',
+      text: 'Signals or automated execution may be wrong or delayed, or affected by stale data, settings, software faults, or unusual market conditions. Automation does not remove the need to monitor activity.',
+    },
+    {
+      number: '05',
+      title: 'Execution and markets',
+      text: 'Volatility, price gaps, low liquidity, partial or missed orders, spreads, slippage, broker or exchange restrictions, fees, outages, and margin calls can affect outcomes. Liquidation may occur where applicable.',
+    },
+    {
+      number: '06',
+      title: 'Technology and third parties',
+      text: 'Internet, hosting, data-provider, broker, or exchange outages and errors may disrupt service or execution. Cybersecurity incidents, third-party terms, and custody arrangements also carry risks. Uninterrupted availability is not promised.',
+    },
+    {
+      number: '07',
+      title: 'Account security',
+      text: 'Protect your accounts and credentials. Never send passwords, one-time codes, recovery phrases, or exchange API secrets through Telegram. Review carefully what access you grant to any service.',
+    },
+    {
+      number: '08',
+      title: 'Law and taxes',
+      text: 'Availability, eligibility, financial rules, licensing, and tax obligations vary by location. Check the laws that apply to you and seek qualified legal or tax advice where needed.',
+    },
+  ];
+
+  return (
+    <main className="terms-screen">
+      <div className="terms-frame">
+        <header className="terms-header">
+          <button type="button" className="terms-back" onClick={() => setLocation('/')} data-testid="button-back-home">
+            <ArrowLeft size={17} /> Back to access
+          </button>
+          <div className="terms-brand">
+            <img src="/assets/logo.png" alt="" />
+            <span><b>CHINESE</b><strong>AUTO BOT</strong></span>
+          </div>
+        </header>
+
+        <section className="terms-intro">
+          <div className="terms-kicker"><FileText size={15} /> BEFORE YOU PROCEED</div>
+          <h1>Terms &amp; <em>Risk Disclosure</em></h1>
+          <p className="terms-lede">A clear summary of important risks to consider before using automated trading tools.</p>
+          <div className="terms-notice" role="note" data-testid="notice-general-risk">
+            <span className="terms-notice-icon"><AlertTriangle size={20} /></span>
+            <p>This is a general risk summary, not legal, tax, or investment advice, and not a complete Terms of Service. It may not cover every risk or meet requirements in your jurisdictions. Have qualified legal counsel review it before public use or live-money trading.</p>
+          </div>
+        </section>
+
+        <div className="terms-body">
+          <aside className="terms-side-note">
+            <span className="terms-side-index">PLEASE READ</span>
+            <p>Trading tools can make activity faster. They cannot make markets predictable or remove risk.</p>
+            <span className="terms-side-rule" />
+            <span className="terms-side-foot">GENERAL RISK SUMMARY</span>
+          </aside>
+          <section className="terms-list" aria-label="Risk topics">
+            {sections.map((section) => (
+              <article className="terms-section" key={section.number} data-testid={`section-risk-${section.number}`}>
+                <span className="terms-number">{section.number}</span>
+                <div>
+                  <h2>{section.title}</h2>
+                  <p>{section.text}</p>
+                  {section.note && <p className="terms-owner-note"><strong>Owner verification required.</strong> {section.note.replace('Owner check before publishing: ', '')}</p>}
+                </div>
+              </article>
+            ))}
+          </section>
+        </div>
+
+        <footer className="terms-footer">
+          <p>Take time to understand the risks before continuing.</p>
+          <button type="button" onClick={() => setLocation('/')} data-testid="button-return-access">
+            <ArrowLeft size={17} /> Return to access
+          </button>
+        </footer>
       </div>
     </main>
   );
@@ -259,6 +360,7 @@ function Router() {
     <Route path="/pin" component={Pin} />
     <Route path="/countdown-2" component={() => <Countdown second />} />
     <Route path="/test-key" component={TestKey} />
+    <Route path="/terms" component={Terms} />
     <Route component={NotFound} />
   </Switch></RoutedErrorBoundary>;
 }
