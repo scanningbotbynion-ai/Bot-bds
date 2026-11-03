@@ -13,7 +13,7 @@ A Replit-hosted API that verifies access keys and lets approved Telegram admins 
 - Telegram admin commands: `/key`, `/newkey`, `/setkey NEWKEY`
 - Required shared environment variable: `ADMIN_IDS` — comma-separated numeric Telegram user IDs
 - Optional shared environment variable: `ALLOWED_ORIGIN` — allow browser requests from one trusted origin; unset means no cross-origin access
-- Telegram access uses the connected Replit Telegram integration; no bot token is stored in source
+- Required Replit Secret: `TELEGRAM_BOT_TOKEN` — Telegram Bot API token, never store it in source
 - `DATABASE_URL` is provided by Replit and must not be set manually
 
 ## Stack
@@ -35,7 +35,7 @@ A Replit-hosted API that verifies access keys and lets approved Telegram admins 
 ## Architecture decisions
 
 - Key state and Telegram update offsets are stored in PostgreSQL so restarts do not reset the key or replay processed commands.
-- The bot uses long polling; an existing webhook must be removed before polling can work.
+- The bot uses the Telegram Bot API directly with `TELEGRAM_BOT_TOKEN` and long polling; an existing webhook must be removed before polling can work.
 - The verification route fails closed rather than using a built-in default key.
 
 ## Product

@@ -1,4 +1,3 @@
-import { ReplitConnectors } from "@replit/connectors-sdk";
 import { and, eq } from "drizzle-orm";
 import { db, accessKeyState } from "@workspace/db";
 import { logger } from "./logger";
@@ -9,7 +8,7 @@ import {
   type TelegramUpdate,
 } from "./telegram-update";
 
-const connectors = new ReplitConnectors();
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN?.trim();
 const ADMIN_IDS = parseAdminIds(process.env.ADMIN_IDS);
 
 type TelegramResponse<T> = {
@@ -22,16 +21,39 @@ async function telegram<T>(
   method: string,
   params: Record<string, unknown>,
 ): Promise<T> {
-  const response = await connectors.proxy("telegram", `/${method}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
-  });
-  const data = (await response.json()) as TelegramResponse<T>;
+  if (!TELEGRAM_BOT_TOKEN) {
+    throw new Error("TELEGRAM_BOT_TOKEN is not configured.");
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/${method}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params),
+        signal: AbortSignal.timeout(method === "getUpdates" ? 35_000 : 15_000),
+      },
+    );
+  } catch {
+    throw new Error(`Telegram ${method} request failed before a response.`);
+  }
+
+  let data: TelegramResponse<T>;
+  try {
+    data = (await response.json()) as TelegramResponse<T>;
+  } catch {
+    throw new Error(`Telegram ${method} returned an invalid response.`);
+  }
 
   if (!response.ok || !data.ok || data.result === undefined) {
+    const detail = (data.description ?? response.statusText).replaceAll(
+      TELEGRAM_BOT_TOKEN,
+      "[redacted]",
+    );
     throw new Error(
-      `Telegram ${method} failed: ${data.description ?? response.statusText}`,
+      `Telegram ${method} failed: ${detail}`,
     );
   }
 
@@ -135,6 +157,13 @@ async function pollTelegram(): Promise<void> {
 }
 
 export function startTelegramBot(): void {
+  if (!TELEGRAM_BOT_TOKEN) {
+    logger.error(
+      "Telegram bot polling is disabled: configure the TELEGRAM_BOT_TOKEN secret.",
+    );
+    return;
+  }
+
   if (ADMIN_IDS.size === 0) {
     logger.warn(
       "Telegram bot polling is disabled: configure ADMIN_IDS with at least one Telegram user ID.",
