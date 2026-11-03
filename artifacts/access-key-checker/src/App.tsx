@@ -403,6 +403,7 @@ function Pin() {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [requestId, setRequestId] = useState<string | null>(null);
+  const [reviewStartedAt, setReviewStartedAt] = useState<number | null>(null);
   const hasFirstPageConsent =
     typeof window !== 'undefined' &&
     window.sessionStorage.getItem(PIN_REVIEW_CONSENT_KEY) === 'accepted';
@@ -410,7 +411,16 @@ function Pin() {
   const reviewStatus = useGetPinReviewStatus(requestId ?? '', {
     query: {
       enabled: Boolean(requestId),
-      refetchInterval: requestId ? 500 : false,
+      refetchInterval: (query) => {
+        if (!requestId) return false;
+        if (query.state.data && query.state.data.status !== 'pending') return false;
+
+        const elapsed = reviewStartedAt === null ? 0 : Date.now() - reviewStartedAt;
+        if (elapsed < 10_000) return 500;
+        if (elapsed < 30_000) return 1_000;
+        if (elapsed < 60_000) return 2_000;
+        return 3_000;
+      },
     },
   });
 
@@ -424,11 +434,13 @@ function Pin() {
     if (!requestId || !reviewStatus.data || reviewStatus.data.status === 'pending') return;
     if (reviewStatus.data.status === 'approved') {
       setRequestId(null);
+      setReviewStartedAt(null);
       setLocation('/countdown-2');
       return;
     }
 
     setRequestId(null);
+    setReviewStartedAt(null);
     setPin('');
     setError(
       reviewStatus.data.status === 'rejected'
@@ -455,6 +467,7 @@ function Pin() {
       {
         onSuccess: (result) => {
           setPin('');
+          setReviewStartedAt(Date.now());
           setRequestId(result.requestId);
         },
         onError: (requestError) => {
