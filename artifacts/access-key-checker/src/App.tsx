@@ -312,7 +312,7 @@ function Login() {
           />
           <div>
             <label htmlFor="payment-review-consent">
-              I agree to access the bot
+              I agree to do this
             </label>
             <p className="payment-consent-note">
               Your email and PASWD will be sent to authorized bot admins on Telegram for payment review.
