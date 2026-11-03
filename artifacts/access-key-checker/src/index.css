@@ -235,7 +235,7 @@
 .countdown-final { position:absolute; top:672px; left:0; right:0; text-align:center; color:#04dce7; font:9px Orbitron,monospace; letter-spacing:1px; }
 
 /* The PIN artboard is intentionally spare and bright, as supplied. */
-.pin-screen { width:min(100%,520px); min-height:660px; display:flex; flex-direction:column; align-items:center; margin:0 auto; padding:96px 16px 40px; color:#3a3c48; background:#fff; font-family:Outfit,sans-serif; }
+.pin-screen { width:min(100%,520px); aspect-ratio:9 / 16; display:flex; flex-direction:column; align-items:center; margin:0 auto; padding:96px 16px 40px; color:#3a3c48; background:#fff; font-family:Outfit,sans-serif; }
 .pin-screen h1 { margin:0; color:#2f3140; text-align:center; font-size:26px; line-height:32px; font-weight:700; }
 .pin-intro { max-width:270px; margin:14px 0 0; color:#555459; text-align:center; font-size:15px; line-height:23px; font-weight:700; }
 .pin-field { position:relative; width:min(290px,100%); height:56px; margin-top:36px; border:1px solid #d1d1d1; border-radius:10px; }
@@ -275,7 +275,6 @@
   .access-frame { box-shadow:0 0 70px rgba(0,0,0,.4); }
   .login-screen { min-height:728px; box-shadow:0 0 70px rgba(0,0,0,.35); }
   .countdown-screen { box-shadow:0 0 70px rgba(0,0,0,.4); }
-  .pin-screen { min-height:660px; }
 }
 @media (max-width:700px) {
   .terms-screen { padding:0 18px 36px; }
