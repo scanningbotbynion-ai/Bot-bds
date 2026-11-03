@@ -168,6 +168,15 @@ async function pollTelegram(): Promise<void> {
       }
       retryDelay = 1_000;
     } catch (error) {
+      if (
+        error instanceof Error &&
+        /webhook is active/i.test(error.message)
+      ) {
+        logger.error(
+          "Telegram polling paused because this bot has an active webhook. Keep it in place or remove it before using polling.",
+        );
+        return;
+      }
       logger.error({ err: error }, "Telegram polling failed; retrying");
       await delay(retryDelay);
       retryDelay = Math.min(retryDelay * 2, 30_000);
