@@ -31,6 +31,9 @@ import type {
   PaymentReviewCreated,
   PaymentReviewInput,
   PaymentReviewStatusResult,
+  PinReviewCreated,
+  PinReviewInput,
+  PinReviewStatusResult,
   VerifyKeyInput
 } from './api.schemas';
 
@@ -430,6 +433,196 @@ export function useGetPaymentReviewStatus<TData = Awaited<ReturnType<typeof getP
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetPaymentReviewStatusQueryOptions(requestId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePinReviewRequestUrl = () => {
+
+
+
+
+  return `/api/pin-review`
+}
+
+/**
+ * Sends an app-issued PIN to configured Telegram admins only after the user consents.
+ * @summary Request review of an app-issued access PIN
+ */
+export const createPinReviewRequest = async (pinReviewInput: PinReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<PinReviewCreated> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PinReviewCreated>(getCreatePinReviewRequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(pinReviewInput)
+  }
+);}
+
+
+
+
+
+export const getCreatePinReviewRequestMutationKey = () => ['createPinReviewRequest'] as const;
+
+export const getCreatePinReviewRequestMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPinReviewRequest>>, TError,CreatePinReviewRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPinReviewRequest>>, TError,CreatePinReviewRequestMutationVariables, TContext> => {
+
+const mutationKey = getCreatePinReviewRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPinReviewRequest>>, CreatePinReviewRequestMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPinReviewRequest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePinReviewRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createPinReviewRequest>>>
+    export type CreatePinReviewRequestMutationBody = BodyType<PinReviewInput>
+    export type CreatePinReviewRequestMutationError = ErrorType<ApiError>
+    export type CreatePinReviewRequestMutationVariables = {data: BodyType<PinReviewInput>}
+
+    /**
+ * @summary Request review of an app-issued access PIN
+ */
+export const useCreatePinReviewRequest = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPinReviewRequest>>, TError,CreatePinReviewRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createPinReviewRequest>>,
+        TError,
+        CreatePinReviewRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreatePinReviewRequestMutationOptions(options), queryClient);
+    }
+
+export const getGetPinReviewStatusUrl = (requestId: string,) => {
+
+
+
+
+  return `/api/pin-review/${requestId}`
+}
+
+/**
+ * @summary Get access PIN review status
+ */
+export const getPinReviewStatus = async (requestId: string, options?: Parameters<typeof customFetch>[1]): Promise<PinReviewStatusResult> => {
+
+  return customFetch<PinReviewStatusResult>(getGetPinReviewStatusUrl(requestId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPinReviewStatusQueryKey = (requestId: string,) => {
+    return [
+    `/api/pin-review/${requestId}`
+    ] as const;
+    }
+
+
+export const getGetPinReviewStatusQueryOptions = <TData = Awaited<ReturnType<typeof getPinReviewStatus>>, TError = ErrorType<ApiError>>(requestId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPinReviewStatus>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPinReviewStatusQueryKey(requestId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPinReviewStatus>>> = ({ signal }) => getPinReviewStatus(requestId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: requestId !== null && requestId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPinReviewStatus>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetPinReviewStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getPinReviewStatus>>>
+export type GetPinReviewStatusQueryError = ErrorType<ApiError>
+
+
+export function useGetPinReviewStatus<TData = Awaited<ReturnType<typeof getPinReviewStatus>>, TError = ErrorType<ApiError>>(
+ requestId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPinReviewStatus>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPinReviewStatus>>,
+          TError,
+          Awaited<ReturnType<typeof getPinReviewStatus>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPinReviewStatus<TData = Awaited<ReturnType<typeof getPinReviewStatus>>, TError = ErrorType<ApiError>>(
+ requestId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPinReviewStatus>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPinReviewStatus>>,
+          TError,
+          Awaited<ReturnType<typeof getPinReviewStatus>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPinReviewStatus<TData = Awaited<ReturnType<typeof getPinReviewStatus>>, TError = ErrorType<ApiError>>(
+ requestId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPinReviewStatus>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get access PIN review status
+ */
+
+export function useGetPinReviewStatus<TData = Awaited<ReturnType<typeof getPinReviewStatus>>, TError = ErrorType<ApiError>>(
+ requestId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPinReviewStatus>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetPinReviewStatusQueryOptions(requestId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

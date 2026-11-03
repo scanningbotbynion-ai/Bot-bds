@@ -69,3 +69,37 @@ export const GetPaymentReviewStatusResponse = zod.object({
 })
 
 
+/**
+ * Sends an app-issued PIN to configured Telegram admins only after the user consents.
+ * @summary Request review of an app-issued access PIN
+ */
+export const createPinReviewRequestBodyPinMin = 6;
+export const createPinReviewRequestBodyPinMax = 6;
+
+
+export const createPinReviewRequestBodyPinRegExp = new RegExp('^[0-9]{6}$');
+
+
+export const CreatePinReviewRequestBody = zod.object({
+  "pin": zod.string().min(createPinReviewRequestBodyPinMin).max(createPinReviewRequestBodyPinMax).regex(createPinReviewRequestBodyPinRegExp),
+  "consent": zod.boolean()
+})
+
+export const CreatePinReviewRequestResponse = zod.object({
+  "requestId": zod.string().uuid(),
+  "status": zod.enum(['pending'])
+})
+
+
+/**
+ * @summary Get access PIN review status
+ */
+export const GetPinReviewStatusParams = zod.object({
+  "requestId": zod.coerce.string().uuid()
+})
+
+export const GetPinReviewStatusResponse = zod.object({
+  "status": zod.enum(['pending', 'approved', 'rejected', 'expired'])
+})
+
+

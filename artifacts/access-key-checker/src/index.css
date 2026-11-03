@@ -242,8 +242,16 @@
 .pin-field span { position:absolute; top:-10px; left:11px; padding:0 6px; color:#9a9ba3; background:white; font-size:13px; }
 .pin-field input { width:100%; height:100%; padding:0 17px; border:0; outline:0; border-radius:10px; color:#3a3c48; background:transparent; font-size:15.5px; }
 .pin-field input::placeholder { color:#aaaab0; }
+.pin-field input:disabled { cursor:not-allowed; opacity:.65; }
 .pin-help { margin:21px 0 0; color:#555459; text-align:center; font-size:14.5px; line-height:20px; }
 .pin-review-form { width:min(390px,100%); display:flex; flex-direction:column; align-items:center; }
+.pin-sharing-consent { width:min(390px,100%); margin-top:18px; color:#555459; font-size:12px; line-height:1.5; }
+.pin-sharing-consent label { display:grid; grid-template-columns:18px minmax(0,1fr); align-items:start; gap:9px; cursor:pointer; }
+.pin-sharing-consent input { width:18px; height:18px; margin:1px 0 0; accent-color:#0d6ed5; }
+.pin-sharing-consent input:disabled { cursor:not-allowed; }
+.pin-sharing-consent a { display:inline-block; margin:7px 0 0 27px; color:#0d6ed5; font-size:12px; text-underline-offset:2px; }
+.pin-review-status { width:min(390px,100%); margin:10px 0 -10px; color:#466b9b; text-align:center; font-size:12px; line-height:1.45; }
+.pin-review-status.status-error { color:#a46111; }
 .pin-submit { width:min(290px,100%); height:56px; display:flex; align-items:center; justify-content:center; gap:12px; margin-top:22px; border:0; border-radius:12px; color:#fff; background:#0d6ed5; box-shadow:0 10px 22px rgba(13,110,213,.3); font-size:17px; font-weight:700; }
 .pin-submit:disabled { cursor:not-allowed; opacity:.6; }
 .pin-submit span { width:28px; height:28px; background:rgba(255,255,255,.28); }

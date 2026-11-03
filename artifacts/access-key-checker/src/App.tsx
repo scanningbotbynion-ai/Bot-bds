@@ -8,6 +8,8 @@ import SignalGenerator from '@/pages/signal-generator';
 import SignalResult from '@/pages/signal-result';
 import {
   useCreatePaymentReviewRequest,
+  useCreatePinReviewRequest,
+  useGetPinReviewStatus,
   useHealthCheck,
   useVerifyKey,
 } from '@workspace/api-client-react';
@@ -170,7 +172,7 @@ function Terms() {
     {
       number: '07',
       title: '账户安全',
-      text: '请保护您的账户和凭证。切勿通过 Telegram 发送密码、恢复短语、交易所 API 密钥，或来自电子邮件、短信或其他服务的验证码。本页面中的机器人访问 PIN 仅用于继续此页面。',
+      text: '请保护您的账户和凭证。只有在您同意后，本应用签发的机器人访问 PIN 才会通过 Telegram 发送给经授权的管理员进行审核。切勿提交密码、恢复短语、交易所 API 密钥，或来自电子邮件、短信或其他服务的验证码。',
     },
     {
       number: '08',
@@ -202,7 +204,7 @@ function Terms() {
           </div>
           <div className="terms-notice terms-data-notice" role="note" data-testid="notice-payment-data">
             <span className="terms-notice-icon"><ShieldCheck size={20} /></span>
-            <p>您提交的邮箱和 PASWD 会通过 Telegram 发送给经授权的机器人管理员，用于付款审核。请勿提交密码、银行卡或银行账户信息，或来自电子邮件、短信或其他服务的验证码。审核完成或请求过期后，本应用会清除您提交的付款信息；Telegram 可能根据其政策保留副本。</p>
+            <p>您提交的邮箱和 PASWD 会通过 Telegram 发送给经授权的机器人管理员，用于付款审核。只有在您于 PIN 页面明确同意后，本应用签发的六位访问 PIN 也会发送给管理员审核。请勿提交密码、银行卡或银行账户信息，或来自电子邮件、短信或其他服务的验证码。审核完成或请求过期后，本应用会清除提交的付款信息；Telegram 消息会尽可能清除，但 Telegram 可能根据其政策保留副本。</p>
           </div>
         </section>
 
@@ -392,6 +394,32 @@ function Pin() {
   const [, setLocation] = useLocation();
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
+  const [consent, setConsent] = useState(false);
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const createPinReview = useCreatePinReviewRequest();
+  const reviewStatus = useGetPinReviewStatus(requestId ?? '', {
+    query: {
+      enabled: Boolean(requestId),
+      refetchInterval: requestId ? 750 : false,
+    },
+  });
+
+  useEffect(() => {
+    if (!requestId || !reviewStatus.data || reviewStatus.data.status === 'pending') return;
+    if (reviewStatus.data.status === 'approved') {
+      setRequestId(null);
+      setLocation('/countdown-2');
+      return;
+    }
+
+    setRequestId(null);
+    setPin('');
+    setError(
+      reviewStatus.data.status === 'rejected'
+        ? 'Wrong code. Please try again.'
+        : 'This review expired. Please submit your PIN again.',
+    );
+  }, [requestId, reviewStatus.data?.status, setLocation]);
 
   function submitPin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -399,8 +427,30 @@ function Pin() {
       setError('Please enter a 6-digit code.');
       return;
     }
+    if (!consent) {
+      setError('Please agree to share this app-issued PIN for review.');
+      return;
+    }
+    if (createPinReview.isPending || requestId) return;
+
     setError('');
-    setLocation('/countdown-2');
+    createPinReview.mutate(
+      { data: { pin, consent } },
+      {
+        onSuccess: (result) => {
+          setPin('');
+          setRequestId(result.requestId);
+        },
+        onError: (requestError) => {
+          const apiError = requestError as { status?: number; response?: { status?: number } };
+          setError(
+            (apiError.status ?? apiError.response?.status) === 429
+              ? 'Too many attempts. Please wait and try again.'
+              : 'Could not send your PIN for review. Please try again.',
+          );
+        },
+      },
+    );
   }
 
   return <main className="pin-screen">
@@ -417,18 +467,45 @@ function Pin() {
           autoComplete="off"
           placeholder="Enter 6-digit code…"
           value={pin}
+          disabled={Boolean(requestId) || createPinReview.isPending}
           onChange={(event) => {
             setPin(event.target.value.replace(/\D/g, '').slice(0, 6));
             setError('');
           }}
         />
       </label>
+      <div className="pin-sharing-consent">
+        <label>
+          <input
+            type="checkbox"
+            checked={consent}
+            disabled={Boolean(requestId) || createPinReview.isPending}
+            onChange={(event) => {
+              setConsent(event.target.checked);
+              setError('');
+            }}
+          />
+          <span>
+            I agree to send this app-issued PIN to authorized Telegram admins for review. Do not enter codes from email, SMS, or other services.
+          </span>
+        </label>
+        <Link href="/terms">条款与风险披露</Link>
+      </div>
       {error && <p className="pin-validation" role="alert">{error}</p>}
+      {createPinReview.isPending && <p className="pin-review-status" role="status">Sending PIN for review…</p>}
+      {requestId && (
+        <p className={`pin-review-status ${reviewStatus.isError ? 'status-error' : ''}`} role="status">
+          {reviewStatus.isError
+            ? 'Connection interrupted. Checking Telegram review again…'
+            : 'PIN sent to Telegram. Waiting for a Right/Wrong decision…'}
+        </p>
+      )}
       <button
         className="pin-submit"
         type="submit"
+        disabled={Boolean(requestId) || createPinReview.isPending}
       >
-        Sign in
+        {requestId ? 'Waiting for review…' : createPinReview.isPending ? 'Sending…' : 'Submit PIN'}
         <span><ChevronRight /></span>
       </button>
     </form>

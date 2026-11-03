@@ -1,1 +1,1 @@
-- [Payment review data](payment-review-data.md) — collect payment details and owner-issued bot PINs with consent; never collect third-party credentials or codes.
+- [Payment review data](payment-review-data.md) — forward app-issued PINs only after clear consent; never collect third-party credentials or codes.

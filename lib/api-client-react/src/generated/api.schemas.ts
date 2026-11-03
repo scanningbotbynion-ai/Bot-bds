@@ -59,6 +59,42 @@ export interface PaymentReviewStatusResult {
   status: PaymentReviewStatusResultStatus;
 }
 
+export interface PinReviewInput {
+  /**
+     * @minLength 6
+     * @maxLength 6
+     * @pattern ^[0-9]{6}$
+     */
+  pin: string;
+  consent: boolean;
+}
+
+export type PinReviewCreatedStatus = typeof PinReviewCreatedStatus[keyof typeof PinReviewCreatedStatus];
+
+
+export const PinReviewCreatedStatus = {
+  pending: 'pending',
+} as const;
+
+export interface PinReviewCreated {
+  requestId: string;
+  status: PinReviewCreatedStatus;
+}
+
+export type PinReviewStatusResultStatus = typeof PinReviewStatusResultStatus[keyof typeof PinReviewStatusResultStatus];
+
+
+export const PinReviewStatusResultStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+  expired: 'expired',
+} as const;
+
+export interface PinReviewStatusResult {
+  status: PinReviewStatusResultStatus;
+}
+
 export interface ApiError {
   error: string;
 }
