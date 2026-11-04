@@ -25,6 +25,16 @@ export function getTelegramBotTokens(
     };
   }
 
+  // Saved credentials alone must not reconnect the removed preview bot.
+  // Reconnecting any development bot requires an explicit owner opt-in.
+  if (env.TELEGRAM_DEV_BOT_ENABLED !== "true") {
+    return {
+      primary: undefined,
+      legacyCleanup: undefined,
+      hasDevelopmentConflict: false,
+    };
+  }
+
   const productionTokens = new Set([
     readToken(env.TELEGRAM_BOT_TOKEN),
     readToken(env.TELEGRAM_BOT_TOKEN_2),

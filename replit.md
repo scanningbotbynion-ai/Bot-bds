@@ -19,8 +19,9 @@ A Replit-hosted API that verifies access keys and lets approved Telegram admins 
 - Required shared environment variable: `ADMIN_IDS` — comma-separated numeric Telegram user IDs
 - Optional shared environment variable: `ALLOWED_ORIGIN` — allow browser requests from one trusted origin; unset means no cross-origin access
 - Required Replit Secret: `TELEGRAM_BOT_TOKEN` — Telegram Bot API token, never store it in source
-- Production uses `TELEGRAM_BOT_TOKEN` and optional `TELEGRAM_BOT_TOKEN_2`; Preview uses only `TELEGRAM_DEV_BOT_TOKEN` and optional `TELEGRAM_DEV_BOT_TOKEN_2`
-- Keep Preview bot tokens separate from production tokens; Preview Telegram polling and notifications remain disabled unless development bot secrets are configured
+- Production uses `TELEGRAM_BOT_TOKEN`; optional `TELEGRAM_BOT_TOKEN_2` is for legacy-message cleanup only.
+- The owner disconnected the Preview Telegram bot. Keep `TELEGRAM_DEV_BOT_ENABLED=false`; Preview must not poll, send notifications, or use saved development tokens, including cleanup tokens.
+- Do not reconnect a Preview bot unless the owner explicitly requests it. Reconnection requires `TELEGRAM_DEV_BOT_ENABLED=true` and separate development tokens that never match production tokens.
 - `DATABASE_URL` is provided by Replit and must not be set manually
 
 ## Stack

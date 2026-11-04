@@ -25,6 +25,7 @@ timeoutMs = 20000
 [userenv.shared]
 TELEGRAM_BOT_TOKEN = "9198641561:AAF9wRcl_1R6tdg_uWKfBnoR3h8d06aTDWA"
 ADMIN_IDS = "8913389274"
+TELEGRAM_DEV_BOT_ENABLED = "false"
 
 [nix]
 channel = "stable-25_05"

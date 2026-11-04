@@ -564,6 +564,13 @@ async function pollTelegram(): Promise<void> {
 }
 
 export function startTelegramBot(): void {
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.TELEGRAM_DEV_BOT_ENABLED !== "true"
+  ) {
+    logger.info("Preview Telegram is disconnected by project configuration.");
+    return;
+  }
   if (hasDevelopmentConflict) {
     logger.error(
       "Telegram is disabled in development because a development bot token matches a production bot token.",
