@@ -5,7 +5,7 @@ export type TelegramUpdate = {
   message?: {
     text?: string;
     from?: { id?: number };
-    chat?: { id?: number };
+    chat?: { id?: number; type?: string };
   };
   callback_query?: {
     id: string;
@@ -46,6 +46,9 @@ function commandReply(
   const command = rawCommand.split("@")[0].toLowerCase();
   const argument = parts.join(" ").trim();
 
+  if (command === "/start" || command === "/help") {
+    return { reply: "Commands: /key, /newkey, /setkey NEWKEY" };
+  }
   if (command === "/key") {
     return { reply: `Current key: ${currentKey}` };
   }
@@ -83,12 +86,19 @@ export function applyTelegramUpdate(
   let reply: TelegramUpdateResult["reply"];
 
   if (senderId !== undefined) {
-    const parsedCommand = commandReply(message?.text, state.key, generateKey);
     if (!adminIds.has(String(senderId))) {
       if (chatId !== undefined) {
         reply = { chatId, text: "Not authorized." };
       }
+    } else if (message?.chat?.type && message.chat.type !== "private") {
+      if (chatId !== undefined) {
+        reply = {
+          chatId,
+          text: "For safety, use admin commands in a private chat with this bot.",
+        };
+      }
     } else {
+      const parsedCommand = commandReply(message?.text, state.key, generateKey);
       key = parsedCommand.newKey ?? state.key;
       if (chatId !== undefined) {
         reply = { chatId, text: parsedCommand.reply };

@@ -177,6 +177,120 @@ test("only configured Telegram admins can view or change the key", () => {
   });
 });
 
+test("all admin key commands support help, bot mentions, validation, and key rotation", () => {
+  const admins = parseAdminIds("1001");
+  const state = { key: "OLD1", updateOffset: 0 };
+  const generateKey = () => "NEW123";
+  const privateChat = { id: 1001, type: "private" };
+
+  for (const command of ["/start", "/help@PrimaryBot"]) {
+    const result = applyTelegramUpdate(
+      {
+        update_id: 1,
+        message: { text: command, from: { id: 1001 }, chat: privateChat },
+      },
+      state,
+      admins,
+      generateKey,
+    );
+    assert.equal(result.key, "OLD1");
+    assert.equal(result.reply.text, "Commands: /key, /newkey, /setkey NEWKEY");
+  }
+
+  const showKey = applyTelegramUpdate(
+    {
+      update_id: 2,
+      message: {
+        text: "/key@PrimaryBot",
+        from: { id: 1001 },
+        chat: privateChat,
+      },
+    },
+    state,
+    admins,
+    generateKey,
+  );
+  assert.equal(showKey.reply.text, "Current key: OLD1");
+
+  const generated = applyTelegramUpdate(
+    {
+      update_id: 3,
+      message: {
+        text: "/newkey@PrimaryBot",
+        from: { id: 1001 },
+        chat: privateChat,
+      },
+    },
+    state,
+    admins,
+    generateKey,
+  );
+  assert.equal(generated.key, "NEW123");
+  assert.equal(generated.reply.text, "New key: NEW123");
+
+  const setKey = applyTelegramUpdate(
+    {
+      update_id: 4,
+      message: {
+        text: "/setkey@PrimaryBot lower123",
+        from: { id: 1001 },
+        chat: privateChat,
+      },
+    },
+    state,
+    admins,
+    generateKey,
+  );
+  assert.equal(setKey.key, "LOWER123");
+  assert.equal(setKey.reply.text, "Key changed to: LOWER123");
+
+  const invalidSetKey = applyTelegramUpdate(
+    {
+      update_id: 5,
+      message: {
+        text: "/setkey",
+        from: { id: 1001 },
+        chat: privateChat,
+      },
+    },
+    state,
+    admins,
+    generateKey,
+  );
+  assert.equal(invalidSetKey.key, "OLD1");
+  assert.equal(
+    invalidSetKey.reply.text,
+    "Usage: /setkey NEWKEY  (4-32 letters or numbers)",
+  );
+});
+
+test("admin key commands are rejected in groups without generating a key", () => {
+  let generated = false;
+  const result = applyTelegramUpdate(
+    {
+      update_id: 1,
+      message: {
+        text: "/newkey",
+        from: { id: 1001 },
+        chat: { id: -1001, type: "supergroup" },
+      },
+    },
+    { key: "OLD1", updateOffset: 0 },
+    parseAdminIds("1001"),
+    () => {
+      generated = true;
+      return "NEW1";
+    },
+  );
+
+  assert.equal(result.key, "OLD1");
+  assert.equal(generated, false);
+  assert.equal(
+    result.reply.text,
+    "For safety, use admin commands in a private chat with this bot.",
+  );
+});
+
 test("a committed Telegram update is skipped after restart", () => {
   const admins = parseAdminIds("1001");
   const persistedState = { key: "OLD1", updateOffset: 40 };

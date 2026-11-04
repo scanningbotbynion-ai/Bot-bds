@@ -36,6 +36,13 @@ const SECONDARY_TOKEN_ENV = process.env.NODE_ENV === "production"
   ? "TELEGRAM_BOT_TOKEN_2"
   : "TELEGRAM_DEV_BOT_TOKEN_2";
 const ADMIN_IDS = parseAdminIds(process.env.ADMIN_IDS);
+const BOT_COMMANDS = [
+  { command: "start", description: "Show available commands" },
+  { command: "help", description: "Show available commands" },
+  { command: "key", description: "Show the current access key" },
+  { command: "newkey", description: "Generate a new access key" },
+  { command: "setkey", description: "Set key: /setkey NEWKEY" },
+];
 
 type TelegramResponse<T> = {
   ok: boolean;
@@ -97,20 +104,32 @@ async function telegram<T>(
   return data.result;
 }
 
-function logBotIdentity(botId: TelegramBotId): void {
-  void telegram<TelegramBotIdentity>("getMe", {}, botId)
-    .then((identity) => {
+async function initializeTelegramBot(botId: TelegramBotId): Promise<void> {
+  let retryDelay = 1_000;
+  while (true) {
+    try {
+      const identity = await telegram<TelegramBotIdentity>("getMe", {}, botId);
       logger.info(
         { botId, username: identity.username },
         "Telegram bot token verified",
       );
-    })
-    .catch((error) => {
-      logger.error(
-        { err: error, botId },
-        "Telegram bot token verification failed",
+
+      await telegram<boolean>(
+        "setMyCommands",
+        { commands: BOT_COMMANDS },
+        botId,
       );
-    });
+      logger.info({ botId }, "Telegram command menu registered");
+      return;
+    } catch (error) {
+      logger.warn(
+        { err: error, botId },
+        "Telegram bot setup failed; retrying",
+      );
+      await delay(retryDelay);
+      retryDelay = Math.min(retryDelay * 2, 30_000);
+    }
+  }
 }
 
 export async function notifyPaymentReview(
@@ -441,9 +460,16 @@ async function processUpdate(
       throw new Error("Access-key state is missing from the database.");
     }
 
+    const offsetField = botId === "primary"
+      ? "updateOffset"
+      : "secondaryUpdateOffset";
+    const offsetColumn = botId === "primary"
+      ? accessKeyState.updateOffset
+      : accessKeyState.secondaryUpdateOffset;
+    const currentOffset = state[offsetField];
     const updateResult = applyTelegramUpdate(
       update,
-      state,
+      { key: state.key, updateOffset: currentOffset },
       ADMIN_IDS,
       generateAccessKey,
     );
@@ -457,13 +483,13 @@ async function processUpdate(
       .update(accessKeyState)
       .set({
         key: updateResult.key,
-        updateOffset: updateResult.updateOffset,
+        [offsetField]: updateResult.updateOffset,
         updatedAt: new Date(),
       })
       .where(
         and(
           eq(accessKeyState.id, 1),
-          eq(accessKeyState.updateOffset, state.updateOffset),
+          eq(offsetColumn, currentOffset),
         ),
       )
       .returning({ id: accessKeyState.id });
@@ -483,43 +509,30 @@ async function processUpdate(
 
 async function pollTelegram(botId: TelegramBotId): Promise<void> {
   let retryDelay = 1_000;
-  let secondaryOffset: number | undefined;
 
   while (true) {
     try {
-      let offset: number | undefined;
-      if (botId === "primary") {
-        const [state] = await db
-          .select({ updateOffset: accessKeyState.updateOffset })
-          .from(accessKeyState)
-          .where(eq(accessKeyState.id, 1))
-          .limit(1);
+      const offsetColumn = botId === "primary"
+        ? accessKeyState.updateOffset
+        : accessKeyState.secondaryUpdateOffset;
+      const [state] = await db
+        .select({ updateOffset: offsetColumn })
+        .from(accessKeyState)
+        .where(eq(accessKeyState.id, 1))
+        .limit(1);
 
-        if (!state) {
-          throw new Error("Access-key state is missing from the database.");
-        }
-        offset = state.updateOffset;
-      } else {
-        offset = secondaryOffset;
+      if (!state) {
+        throw new Error("Access-key state is missing from the database.");
       }
 
       const updates = await telegram<TelegramUpdate[]>("getUpdates", {
-        ...(offset === undefined ? {} : { offset }),
+        offset: state.updateOffset,
         timeout: 25,
-        allowed_updates: botId === "primary"
-          ? ["message", "callback_query"]
-          : ["callback_query"],
+        allowed_updates: ["message", "callback_query"],
       }, botId);
 
       for (const update of updates) {
-        if (botId === "primary") {
-          await processUpdate(update, botId);
-        } else if (update.callback_query) {
-          await processReviewCallback(update.callback_query, botId);
-          secondaryOffset = update.update_id + 1;
-        } else {
-          secondaryOffset = update.update_id + 1;
-        }
+        await processUpdate(update, botId);
       }
       retryDelay = 1_000;
     } catch (error) {
@@ -563,12 +576,12 @@ export function startTelegramBot(): void {
     return;
   }
 
-  logBotIdentity("primary");
+  void initializeTelegramBot("primary");
   void pollTelegram("primary");
 
   if (BOT_TOKENS.secondary) {
     if (BOT_TOKENS.secondary !== BOT_TOKENS.primary) {
-      logBotIdentity("secondary");
+      void initializeTelegramBot("secondary");
       void pollTelegram("secondary");
     } else {
       logger.error(
