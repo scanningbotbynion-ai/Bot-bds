@@ -10,6 +10,7 @@ import {
 export type TelegramMessagePointer = {
   chatId: number;
   messageId: number;
+  botId?: "primary" | "secondary";
 };
 
 export const paymentReviewRequests = pgTable("payment_review_requests", {

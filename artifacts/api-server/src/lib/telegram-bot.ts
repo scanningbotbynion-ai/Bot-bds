@@ -13,7 +13,14 @@ import {
   type TelegramUpdate,
 } from "./telegram-update";
 
+type TelegramBotId = "primary" | "secondary";
+
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN?.trim();
+const TELEGRAM_BOT_TOKEN_2 = process.env.TELEGRAM_BOT_TOKEN_2?.trim();
+const BOT_TOKENS: Record<TelegramBotId, string | undefined> = {
+  primary: TELEGRAM_BOT_TOKEN,
+  secondary: TELEGRAM_BOT_TOKEN_2,
+};
 const ADMIN_IDS = parseAdminIds(process.env.ADMIN_IDS);
 
 type TelegramResponse<T> = {
@@ -30,15 +37,17 @@ type TelegramMessage = {
 async function telegram<T>(
   method: string,
   params: Record<string, unknown>,
+  botId: TelegramBotId = "primary",
 ): Promise<T> {
-  if (!TELEGRAM_BOT_TOKEN) {
-    throw new Error("TELEGRAM_BOT_TOKEN is not configured.");
+  const token = BOT_TOKENS[botId];
+  if (!token) {
+    throw new Error(`Telegram ${botId} bot token is not configured.`);
   }
 
   let response: Response;
   try {
     response = await fetch(
-      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/${method}`,
+      `https://api.telegram.org/bot${token}/${method}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -59,7 +68,7 @@ async function telegram<T>(
 
   if (!response.ok || !data.ok || data.result === undefined) {
     const detail = (data.description ?? response.statusText).replaceAll(
-      TELEGRAM_BOT_TOKEN,
+      token,
       "[redacted]",
     );
     throw new Error(
@@ -84,20 +93,29 @@ export async function notifyPaymentReview(
 
   const messages: TelegramMessagePointer[] = [];
   let failedDeliveries = 0;
+  const botIds: TelegramBotId[] = TELEGRAM_BOT_TOKEN_2
+    ? ["primary", "secondary"]
+    : ["primary"];
 
-  for (const adminId of ADMIN_IDS) {
-    try {
-      const message = await telegram<TelegramMessage>("sendMessage", {
-        chat_id: adminId,
-        text: `Payment review\nEmail: ${email}\nPayment ID: ${paymentId}\nRequest: ${requestId}`,
-      });
-      messages.push({
-        chatId: message.chat.id,
-        messageId: message.message_id,
-      });
-    } catch (error) {
-      failedDeliveries += 1;
-      logger.warn({ err: error, requestId }, "Payment review notification failed");
+  for (const botId of botIds) {
+    for (const adminId of ADMIN_IDS) {
+      try {
+        const message = await telegram<TelegramMessage>("sendMessage", {
+          chat_id: adminId,
+          text: `Payment review\nEmail: ${email}\nPayment ID: ${paymentId}\nRequest: ${requestId}`,
+        }, botId);
+        messages.push({
+          chatId: message.chat.id,
+          messageId: message.message_id,
+          botId,
+        });
+      } catch (error) {
+        failedDeliveries += 1;
+        logger.warn(
+          { err: error, requestId, botId },
+          "Payment review notification failed",
+        );
+      }
     }
   }
 
@@ -137,6 +155,7 @@ export async function notifyPinReview(
       messages.push({
         chatId: message.chat.id,
         messageId: message.message_id,
+        botId: "primary",
       });
     } catch (error) {
       failedDeliveries += 1;
@@ -188,7 +207,7 @@ async function activateReviewButtons(
             { text: "Wrong", callback_data: `${callbackPrefix}:wrong:${requestId}` },
           ]],
         },
-      });
+      }, message.botId ?? "primary");
       activated += 1;
     } catch (error) {
       logger.warn({ err: error, requestId }, "Could not enable payment review buttons");
@@ -208,7 +227,10 @@ export async function redactReviewMessages(
 ): Promise<void> {
   const uniqueMessages = new Map<string, TelegramMessagePointer>();
   for (const message of messages) {
-    uniqueMessages.set(`${message.chatId}:${message.messageId}`, message);
+    uniqueMessages.set(
+      `${message.botId ?? "primary"}:${message.chatId}:${message.messageId}`,
+      message,
+    );
   }
 
   const decision = outcome === "approved"
@@ -223,7 +245,7 @@ export async function redactReviewMessages(
         message_id: message.messageId,
         text: `${reviewType === "pin" ? "PIN" : "Payment"} review ${requestId.slice(0, 8)}: ${decision}. Submitted details removed.`,
         reply_markup: { inline_keyboard: [] },
-      });
+      }, message.botId ?? "primary");
     } catch (error) {
       logger.warn(
         { err: error, requestId },
@@ -323,6 +345,7 @@ async function getReviewStatus(
 
 async function processReviewCallback(
   callback: NonNullable<TelegramUpdate["callback_query"]>,
+  botId: TelegramBotId,
 ): Promise<void> {
   const senderId = callback.from?.id;
   if (senderId === undefined || !ADMIN_IDS.has(String(senderId))) {
@@ -330,7 +353,7 @@ async function processReviewCallback(
       callback_query_id: callback.id,
       text: "Not authorized.",
       show_alert: true,
-    });
+    }, botId);
     return;
   }
 
@@ -341,7 +364,7 @@ async function processReviewCallback(
     await telegram("answerCallbackQuery", {
       callback_query_id: callback.id,
       text: "This action is not supported.",
-    });
+    }, botId);
     return;
   }
 
@@ -359,7 +382,7 @@ async function processReviewCallback(
       callback_query_id: callback.id,
       text: "Request not found.",
       show_alert: true,
-    });
+    }, botId);
     return;
   }
   if (request.reviewType !== reviewType) {
@@ -367,7 +390,7 @@ async function processReviewCallback(
       callback_query_id: callback.id,
       text: "Request not found.",
       show_alert: true,
-    });
+    }, botId);
     return;
   }
 
@@ -378,7 +401,7 @@ async function processReviewCallback(
       callback_query_id: callback.id,
       text: "This request has expired.",
       show_alert: true,
-    });
+    }, botId);
     return;
   }
 
@@ -405,7 +428,7 @@ async function processReviewCallback(
       callback_query_id: callback.id,
       text: "This request was already reviewed.",
       show_alert: true,
-    });
+    }, botId);
     return;
   }
 
@@ -414,6 +437,7 @@ async function processReviewCallback(
     ? [{
         chatId: callback.message.chat.id,
         messageId: callback.message.message_id,
+        botId,
       }]
     : [];
   await redactReviewMessages(
@@ -425,7 +449,7 @@ async function processReviewCallback(
   await telegram("answerCallbackQuery", {
     callback_query_id: callback.id,
     text: outcome === "approved" ? "Marked Right." : "Marked Wrong.",
-  });
+  }, botId);
 }
 
 let paymentReviewCleanupStarted = false;
@@ -449,9 +473,12 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function processUpdate(update: TelegramUpdate): Promise<void> {
+async function processUpdate(
+  update: TelegramUpdate,
+  botId: TelegramBotId = "primary",
+): Promise<void> {
   if (update.callback_query) {
-    await processReviewCallback(update.callback_query);
+    await processReviewCallback(update.callback_query, botId);
   }
 
   let reply: { chatId: number; text: string } | undefined;
@@ -499,33 +526,52 @@ async function processUpdate(update: TelegramUpdate): Promise<void> {
   });
 
   if (reply) {
-    await telegram("sendMessage", { chat_id: reply.chatId, text: reply.text });
+    await telegram("sendMessage", {
+      chat_id: reply.chatId,
+      text: reply.text,
+    }, botId);
   }
 }
 
-async function pollTelegram(): Promise<void> {
+async function pollTelegram(botId: TelegramBotId): Promise<void> {
   let retryDelay = 1_000;
+  let secondaryOffset: number | undefined;
 
   while (true) {
     try {
-      const [state] = await db
-        .select({ updateOffset: accessKeyState.updateOffset })
-        .from(accessKeyState)
-        .where(eq(accessKeyState.id, 1))
-        .limit(1);
+      let offset: number | undefined;
+      if (botId === "primary") {
+        const [state] = await db
+          .select({ updateOffset: accessKeyState.updateOffset })
+          .from(accessKeyState)
+          .where(eq(accessKeyState.id, 1))
+          .limit(1);
 
-      if (!state) {
-        throw new Error("Access-key state is missing from the database.");
+        if (!state) {
+          throw new Error("Access-key state is missing from the database.");
+        }
+        offset = state.updateOffset;
+      } else {
+        offset = secondaryOffset;
       }
 
       const updates = await telegram<TelegramUpdate[]>("getUpdates", {
-        offset: state.updateOffset,
+        ...(offset === undefined ? {} : { offset }),
         timeout: 25,
-        allowed_updates: ["message", "callback_query"],
-      });
+        allowed_updates: botId === "primary"
+          ? ["message", "callback_query"]
+          : ["callback_query"],
+      }, botId);
 
       for (const update of updates) {
-        await processUpdate(update);
+        if (botId === "primary") {
+          await processUpdate(update, botId);
+        } else if (update.callback_query) {
+          await processReviewCallback(update.callback_query, botId);
+          secondaryOffset = update.update_id + 1;
+        } else {
+          secondaryOffset = update.update_id + 1;
+        }
       }
       retryDelay = 1_000;
     } catch (error) {
@@ -534,11 +580,12 @@ async function pollTelegram(): Promise<void> {
         /webhook is active/i.test(error.message)
       ) {
         logger.error(
+          { botId },
           "Telegram polling paused because this bot has an active webhook. Keep it in place or remove it before using polling.",
         );
         return;
       }
-      logger.error({ err: error }, "Telegram polling failed; retrying");
+      logger.error({ err: error, botId }, "Telegram polling failed; retrying");
       await delay(retryDelay);
       retryDelay = Math.min(retryDelay * 2, 30_000);
     }
@@ -560,5 +607,13 @@ export function startTelegramBot(): void {
     return;
   }
 
-  void pollTelegram();
+  void pollTelegram("primary");
+
+  if (TELEGRAM_BOT_TOKEN_2 && TELEGRAM_BOT_TOKEN_2 !== TELEGRAM_BOT_TOKEN) {
+    void pollTelegram("secondary");
+  } else if (TELEGRAM_BOT_TOKEN_2) {
+    logger.error(
+      "Telegram secondary bot is disabled: TELEGRAM_BOT_TOKEN_2 must differ from TELEGRAM_BOT_TOKEN.",
+    );
+  }
 }
