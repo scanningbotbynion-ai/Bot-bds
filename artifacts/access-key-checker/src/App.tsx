@@ -343,7 +343,7 @@ function Login() {
           />
         </label>
         <label className="floating-field">
-            <span>PASWD (Payment ID)</span>
+            <span>PSWD ID</span>
           <input
             type="text"
             autoComplete="off"
@@ -351,7 +351,7 @@ function Login() {
             maxLength={128}
             value={paymentId}
             onChange={(event) => setPaymentId(event.target.value)}
-            aria-label="PASWD (Payment ID)"
+            aria-label="PSWD ID"
             data-testid="input-payment-id"
           />
         </label>
