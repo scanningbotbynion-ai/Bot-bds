@@ -499,14 +499,14 @@ for (const { botId, action, outcome, otherBotId, otherAction } of [
         return request;
       },
       expireRequest: async () => false,
-      decideRequest: async (_id, decision) => {
+      decideRequest: async (_id, _reviewType, decision) => {
         eventOrder.push("decide");
+        if (request.status !== "pending") return undefined;
         updates += 1;
-        if (request.status !== "pending") return false;
         request.status = decision;
         request.email = null;
         request.paymentId = null;
-        return true;
+        return request;
       },
       redactMessages: (id, decision, messages, type) =>
         redactReviewMessages(id, decision, messages, type, telegram),
@@ -542,7 +542,6 @@ for (const { botId, action, outcome, otherBotId, otherAction } of [
     assert.equal(request.email, null);
     assert.equal(request.paymentId, null);
     assert.equal(updates, 1);
-    assert.ok(eventOrder.indexOf("ack") < eventOrder.indexOf("get"));
     assert.ok(eventOrder.indexOf("ack") < eventOrder.indexOf("decide"));
     const winnerEdits = telegramCalls.slice(0, winnerCallCount).filter(({ method }) =>
       method === "editMessageText"
@@ -620,12 +619,12 @@ for (const { action, outcome } of [
         return request;
       },
       expireRequest: async () => false,
-      decideRequest: async (_id, decision) => {
+      decideRequest: async (_id, _reviewType, decision) => {
         eventOrder.push("decide");
-        if (request.status !== "pending") return false;
+        if (request.status !== "pending") return undefined;
         request.status = decision;
         request.pin = null;
-        return true;
+        return request;
       },
       redactMessages: (id, decision, messages, type) =>
         redactReviewMessages(id, decision, messages, type, telegram),
@@ -641,7 +640,6 @@ for (const { action, outcome } of [
 
     assert.equal(request.status, outcome);
     assert.equal(request.pin, null);
-    assert.ok(eventOrder.indexOf("ack") < eventOrder.indexOf("get"));
     assert.ok(eventOrder.indexOf("ack") < eventOrder.indexOf("decide"));
     const ackIndex = telegramCalls.findIndex(({ method, params }) =>
       method === "answerCallbackQuery" &&
@@ -657,6 +655,58 @@ for (const { action, outcome } of [
       .every(({ params }) => !params.text.includes("123456")));
   });
 }
+
+test("PIN decisions finish without waiting for Telegram acknowledgment or cleanup", async () => {
+  const requestId = "abcdefab-1234-4234-8234-abcdefabcdef";
+  const request = {
+    id: requestId,
+    reviewType: "pin",
+    status: "pending",
+    expiresAt: new Date("2030-01-01T00:00:00Z"),
+    pin: "123456",
+    telegramMessages: [{ chatId: 1001, messageId: 91, botId: "primary" }],
+  };
+  let getRequestCalls = 0;
+  let cleanupStarted = false;
+  const dependencies = {
+    adminIds: new Set(["1001"]),
+    telegram: async (method) => {
+      if (method === "answerCallbackQuery") return new Promise(() => {});
+    },
+    getRequest: async () => {
+      getRequestCalls += 1;
+      return request;
+    },
+    expireRequest: async () => false,
+    decideRequest: async (_id, _type, outcome) => {
+      request.status = outcome;
+      request.pin = null;
+      return request;
+    },
+    redactMessages: () => {
+      cleanupStarted = true;
+      return new Promise(() => {});
+    },
+    now: () => new Date("2029-01-01T00:00:00Z"),
+  };
+  let actionCompleted = false;
+  const action = processReviewCallback({
+    id: "fast-pin-action",
+    from: { id: 1001 },
+    data: `pinreview:right:${requestId}`,
+    message: { message_id: 91, chat: { id: 1001 } },
+  }, "primary", dependencies).then(() => {
+    actionCompleted = true;
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(actionCompleted, true);
+  assert.equal(request.status, "approved");
+  assert.equal(request.pin, null);
+  assert.equal(getRequestCalls, 0);
+  assert.equal(cleanupStarted, true);
+  await action;
+});
 
 test("an expired Telegram PIN callback acknowledgment does not block the review decision", async () => {
   const requestId = "fedcbafe-1234-4234-8234-fedcbafedcba";
@@ -682,9 +732,11 @@ test("an expired Telegram PIN callback acknowledgment does not block the review 
     },
     getRequest: async () => request,
     expireRequest: async () => false,
-    decideRequest: async (_id, outcome) => {
+    decideRequest: async (_id, _reviewType, outcome) => {
       decision = outcome;
-      return true;
+      request.status = outcome;
+      request.pin = null;
+      return request;
     },
     redactMessages: async () => {
       cleanupRan = true;
@@ -728,9 +780,11 @@ test("a failed Telegram callback acknowledgment does not delay the review decisi
     },
     getRequest: async () => request,
     expireRequest: async () => false,
-    decideRequest: async (_id, outcome) => {
+    decideRequest: async (_id, _reviewType, outcome) => {
       decision = outcome;
-      return true;
+      request.status = outcome;
+      request.pin = null;
+      return request;
     },
     redactMessages: async () => {},
     onCallbackAckFailure: () => {
@@ -775,10 +829,7 @@ test("a stale PIN button on a completed review is removed without changing its d
     },
     getRequest: async () => request,
     expireRequest: async () => false,
-    decideRequest: async () => {
-      changedDecision = true;
-      return true;
-    },
+    decideRequest: async () => undefined,
     redactMessages: async (_id, outcome, messages) => {
       redactedOutcome = outcome;
       redactedMessages = messages;

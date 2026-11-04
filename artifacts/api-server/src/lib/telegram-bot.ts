@@ -418,7 +418,7 @@ async function processReviewCallback(
       return request;
     },
     expireRequest: expireReview,
-    decideRequest: async (requestId, outcome, now) => {
+    decideRequest: async (requestId, reviewType, outcome, now) => {
       const [decided] = await db
         .update(paymentReviewRequests)
         .set({
@@ -431,12 +431,13 @@ async function processReviewCallback(
         .where(
           and(
             eq(paymentReviewRequests.id, requestId),
+            eq(paymentReviewRequests.reviewType, reviewType),
             eq(paymentReviewRequests.status, "pending"),
             gt(paymentReviewRequests.expiresAt, now),
           ),
         )
-        .returning({ id: paymentReviewRequests.id });
-      return Boolean(decided);
+        .returning();
+      return decided;
     },
     redactMessages: redactReviewMessages,
   });

@@ -121,9 +121,10 @@ export async function processReviewCallback<TRequest extends ReviewRequest>(
     expireRequest: (request: TRequest, now: Date) => Promise<boolean>;
     decideRequest: (
       requestId: string,
+      reviewType: "payment" | "pin",
       outcome: "approved" | "rejected",
       now: Date,
-    ) => Promise<boolean>;
+    ) => Promise<TRequest | undefined>;
     redactMessages: (
       requestId: string,
       outcome: "approved" | "rejected" | "expired",
@@ -174,6 +175,36 @@ export async function processReviewCallback<TRequest extends ReviewRequest>(
     dependencies.onCallbackAckFailure?.(error);
   });
 
+  const now = (dependencies.now ?? (() => new Date()))();
+  const clickedMessage = callback.message?.chat?.id !== undefined &&
+      callback.message.message_id !== undefined
+    ? [{
+        chatId: callback.message.chat.id,
+        messageId: callback.message.message_id,
+        botId,
+      }]
+    : [];
+
+  // The conditional update is the fast path: a valid decision takes one DB
+  // round trip, and message cleanup never holds the callback or poll loop open.
+  const decidedRequest = await dependencies.decideRequest(
+    requestId,
+    reviewType,
+    outcome,
+    now,
+  );
+  if (decidedRequest) {
+    void dependencies.redactMessages(
+      requestId,
+      outcome,
+      [...decidedRequest.telegramMessages, ...clickedMessage],
+      reviewType,
+    ).catch((error) => {
+      dependencies.onMessageRedactionFailure?.(error);
+    });
+    return;
+  }
+
   const request = await dependencies.getRequest(requestId);
   if (!request || request.reviewType !== reviewType) {
     const message = callback.message;
@@ -190,60 +221,25 @@ export async function processReviewCallback<TRequest extends ReviewRequest>(
     return;
   }
 
-  const clickedMessage = callback.message?.chat?.id !== undefined &&
-      callback.message.message_id !== undefined
-    ? [{
-        chatId: callback.message.chat.id,
-        messageId: callback.message.message_id,
-        botId,
-      }]
-    : [];
-  const now = (dependencies.now ?? (() => new Date()))();
   if (request.status === "pending" && request.expiresAt <= now) {
     await dependencies.expireRequest(request, now);
     return;
   }
 
-  const decided = request.status === "pending" &&
-    await dependencies.decideRequest(requestId, outcome, now);
-  if (!decided) {
-    const latestRequest = request.status === "pending"
-      ? await dependencies.getRequest(requestId)
-      : request;
-    if (
-      latestRequest?.status === "pending" &&
-      latestRequest.expiresAt <= now
-    ) {
-      await dependencies.expireRequest(latestRequest, now);
-      return;
-    }
-
-    const completedOutcome = latestRequest?.status === "approved" ||
-        latestRequest?.status === "rejected" ||
-        latestRequest?.status === "expired"
-      ? latestRequest.status
-      : undefined;
-    if (latestRequest && completedOutcome) {
-      void dependencies.redactMessages(
-        requestId,
-        completedOutcome,
-        [...latestRequest.telegramMessages, ...clickedMessage],
-        reviewType,
-      ).catch((error) => {
-        dependencies.onMessageRedactionFailure?.(error);
-      });
-      return;
-    }
-
+  const completedOutcome = request.status === "approved" ||
+      request.status === "rejected" ||
+      request.status === "expired"
+    ? request.status
+    : undefined;
+  if (completedOutcome) {
+    void dependencies.redactMessages(
+      requestId,
+      completedOutcome,
+      [...request.telegramMessages, ...clickedMessage],
+      reviewType,
+    ).catch((error) => {
+      dependencies.onMessageRedactionFailure?.(error);
+    });
     return;
   }
-
-  void dependencies.redactMessages(
-    requestId,
-    outcome,
-    [...request.telegramMessages, ...clickedMessage],
-    reviewType,
-  ).catch((error) => {
-    dependencies.onMessageRedactionFailure?.(error);
-  });
 }
