@@ -12,6 +12,11 @@ import {
   parseAdminIds,
   type TelegramUpdate,
 } from "./telegram-update";
+import {
+  processReviewCallback as processReviewCallbackWithDependencies,
+  redactReviewMessages as redactTelegramReviewMessages,
+  sendPaymentReviewMessages,
+} from "./payment-review-telegram";
 
 type TelegramBotId = "primary" | "secondary";
 
@@ -91,33 +96,30 @@ export async function notifyPaymentReview(
     throw new Error("No Telegram admins are configured.");
   }
 
-  const messages: TelegramMessagePointer[] = [];
   let failedDeliveries = 0;
-  const botIds: TelegramBotId[] = TELEGRAM_BOT_TOKEN_2
-    ? ["primary", "secondary"]
-    : ["primary"];
+  const botIds = TELEGRAM_BOT_TOKEN_2
+    ? ["primary", "secondary"] as const
+    : ["primary"] as const;
 
-  for (const botId of botIds) {
-    for (const adminId of ADMIN_IDS) {
-      try {
-        const message = await telegram<TelegramMessage>("sendMessage", {
-          chat_id: adminId,
-          text: `Payment review\nEmail: ${email}\nPayment ID: ${paymentId}\nRequest: ${requestId}`,
-        }, botId);
-        messages.push({
-          chatId: message.chat.id,
-          messageId: message.message_id,
-          botId,
-        });
-      } catch (error) {
-        failedDeliveries += 1;
-        logger.warn(
-          { err: error, requestId, botId },
-          "Payment review notification failed",
-        );
-      }
-    }
-  }
+  const messages = await sendPaymentReviewMessages({
+    requestId,
+    email,
+    paymentId,
+    adminIds: ADMIN_IDS,
+    botIds: [...botIds],
+    sendMessage: (params, botId) => telegram<TelegramMessage>(
+      "sendMessage",
+      params,
+      botId,
+    ),
+    onFailure: (error, botId) => {
+      failedDeliveries += 1;
+      logger.warn(
+        { err: error, requestId, botId },
+        "Payment review notification failed",
+      );
+    },
+  });
 
   if (messages.length === 0) {
     throw new Error("No Telegram admin received the payment review request.");
@@ -225,34 +227,17 @@ export async function redactReviewMessages(
   messages: TelegramMessagePointer[],
   reviewType: "payment" | "pin" = "payment",
 ): Promise<void> {
-  const uniqueMessages = new Map<string, TelegramMessagePointer>();
-  for (const message of messages) {
-    uniqueMessages.set(
-      `${message.botId ?? "primary"}:${message.chatId}:${message.messageId}`,
-      message,
-    );
-  }
-
-  const decision = outcome === "approved"
-    ? "Right"
-    : outcome === "rejected"
-      ? "Wrong"
-      : "Expired";
-  for (const message of uniqueMessages.values()) {
-    try {
-      await telegram("editMessageText", {
-        chat_id: message.chatId,
-        message_id: message.messageId,
-        text: `${reviewType === "pin" ? "PIN" : "Payment"} review ${requestId.slice(0, 8)}: ${decision}. Submitted details removed.`,
-        reply_markup: { inline_keyboard: [] },
-      }, message.botId ?? "primary");
-    } catch (error) {
-      logger.warn(
-        { err: error, requestId },
-        "Could not redact a resolved payment review message",
-      );
-    }
-  }
+  await redactTelegramReviewMessages(
+    requestId,
+    outcome,
+    messages,
+    reviewType,
+    telegram,
+    (error) => logger.warn(
+      { err: error, requestId },
+      "Could not redact a resolved payment review message",
+    ),
+  );
 }
 
 async function expireReview(
@@ -347,109 +332,40 @@ async function processReviewCallback(
   callback: NonNullable<TelegramUpdate["callback_query"]>,
   botId: TelegramBotId,
 ): Promise<void> {
-  const senderId = callback.from?.id;
-  if (senderId === undefined || !ADMIN_IDS.has(String(senderId))) {
-    await telegram("answerCallbackQuery", {
-      callback_query_id: callback.id,
-      text: "Not authorized.",
-      show_alert: true,
-    }, botId);
-    return;
-  }
-
-  const match = /^(payreview|pinreview):(right|wrong):([0-9a-f-]{36})$/i.exec(
-    callback.data ?? "",
-  );
-  if (!match) {
-    await telegram("answerCallbackQuery", {
-      callback_query_id: callback.id,
-      text: "This action is not supported.",
-    }, botId);
-    return;
-  }
-
-  const reviewType = match[1] === "pinreview" ? "pin" : "payment";
-  const requestId = match[3];
-  const outcome = match[2] === "right" ? "approved" : "rejected";
-  const [request] = await db
-    .select()
-    .from(paymentReviewRequests)
-    .where(eq(paymentReviewRequests.id, requestId))
-    .limit(1);
-
-  if (!request) {
-    await telegram("answerCallbackQuery", {
-      callback_query_id: callback.id,
-      text: "Request not found.",
-      show_alert: true,
-    }, botId);
-    return;
-  }
-  if (request.reviewType !== reviewType) {
-    await telegram("answerCallbackQuery", {
-      callback_query_id: callback.id,
-      text: "Request not found.",
-      show_alert: true,
-    }, botId);
-    return;
-  }
-
-  const now = new Date();
-  if (request.status === "pending" && request.expiresAt <= now) {
-    await expireReview(request, now);
-    await telegram("answerCallbackQuery", {
-      callback_query_id: callback.id,
-      text: "This request has expired.",
-      show_alert: true,
-    }, botId);
-    return;
-  }
-
-  const [decided] = await db
-    .update(paymentReviewRequests)
-    .set({
-      status: outcome,
-      email: null,
-      paymentId: null,
-      pin: null,
-      decidedAt: now,
-    })
-    .where(
-      and(
-        eq(paymentReviewRequests.id, requestId),
-        eq(paymentReviewRequests.status, "pending"),
-        gt(paymentReviewRequests.expiresAt, now),
-      ),
-    )
-    .returning({ id: paymentReviewRequests.id });
-
-  if (!decided) {
-    await telegram("answerCallbackQuery", {
-      callback_query_id: callback.id,
-      text: "This request was already reviewed.",
-      show_alert: true,
-    }, botId);
-    return;
-  }
-
-  const clickedMessage = callback.message?.chat?.id !== undefined &&
-      callback.message.message_id !== undefined
-    ? [{
-        chatId: callback.message.chat.id,
-        messageId: callback.message.message_id,
-        botId,
-      }]
-    : [];
-  await redactReviewMessages(
-    requestId,
-    outcome,
-    [...request.telegramMessages, ...clickedMessage],
-    reviewType,
-  );
-  await telegram("answerCallbackQuery", {
-    callback_query_id: callback.id,
-    text: outcome === "approved" ? "Marked Right." : "Marked Wrong.",
-  }, botId);
+  await processReviewCallbackWithDependencies(callback, botId, {
+    adminIds: ADMIN_IDS,
+    telegram,
+    getRequest: async (requestId) => {
+      const [request] = await db
+        .select()
+        .from(paymentReviewRequests)
+        .where(eq(paymentReviewRequests.id, requestId))
+        .limit(1);
+      return request;
+    },
+    expireRequest: expireReview,
+    decideRequest: async (requestId, outcome, now) => {
+      const [decided] = await db
+        .update(paymentReviewRequests)
+        .set({
+          status: outcome,
+          email: null,
+          paymentId: null,
+          pin: null,
+          decidedAt: now,
+        })
+        .where(
+          and(
+            eq(paymentReviewRequests.id, requestId),
+            eq(paymentReviewRequests.status, "pending"),
+            gt(paymentReviewRequests.expiresAt, now),
+          ),
+        )
+        .returning({ id: paymentReviewRequests.id });
+      return Boolean(decided);
+    },
+    redactMessages: redactReviewMessages,
+  });
 }
 
 let paymentReviewCleanupStarted = false;

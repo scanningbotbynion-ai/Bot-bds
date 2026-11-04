@@ -5,6 +5,11 @@ import {
   applyTelegramUpdate,
   parseAdminIds,
 } from "../src/lib/telegram-update.ts";
+import {
+  processReviewCallback,
+  redactReviewMessages,
+  sendPaymentReviewMessages,
+} from "../src/lib/payment-review-telegram.ts";
 
 function makeVerificationHarness({
   getAccessKeyState = async () => ({ key: "ABCD" }),
@@ -212,4 +217,176 @@ test("a committed Telegram update is skipped after restart", () => {
   assert.equal(secondRun.updateOffset, 41);
   assert.equal(secondRun.reply, undefined);
   assert.equal(generatedKeys, 1);
+});
+
+test("payment review notifications are sent through both configured bots", async () => {
+  const sent = [];
+  const messages = await sendPaymentReviewMessages({
+    requestId: "12345678-1234-4234-8234-123456789abc",
+    email: "buyer@example.com",
+    paymentId: "payment-sensitive-123",
+    adminIds: ["1001"],
+    botIds: ["primary", "secondary"],
+    sendMessage: async (params, botId) => {
+      sent.push({ params, botId });
+      return {
+        message_id: sent.length,
+        chat: { id: Number(params.chat_id) },
+      };
+    },
+  });
+
+  assert.deepEqual(sent.map(({ botId }) => botId), ["primary", "secondary"]);
+  assert.deepEqual(messages.map(({ botId }) => botId), [
+    "primary",
+    "secondary",
+  ]);
+  assert.deepEqual(messages.map(({ messageId }) => messageId), [1, 2]);
+  assert.ok(sent.every(({ params }) =>
+    params.text.includes("buyer@example.com") &&
+    params.text.includes("payment-sensitive-123")
+  ));
+});
+
+for (const { botId, action, outcome, otherBotId, otherAction } of [
+  {
+    botId: "primary",
+    action: "right",
+    outcome: "approved",
+    otherBotId: "secondary",
+    otherAction: "wrong",
+  },
+  {
+    botId: "primary",
+    action: "wrong",
+    outcome: "rejected",
+    otherBotId: "secondary",
+    otherAction: "right",
+  },
+  {
+    botId: "secondary",
+    action: "right",
+    outcome: "approved",
+    otherBotId: "primary",
+    otherAction: "wrong",
+  },
+  {
+    botId: "secondary",
+    action: "wrong",
+    outcome: "rejected",
+    otherBotId: "primary",
+    otherAction: "right",
+  },
+]) {
+  test(`${botId} bot resolves the shared review and redacts both messages`, async () => {
+    const requestId = "12345678-1234-4234-8234-123456789abc";
+    const request = {
+      id: requestId,
+      reviewType: "payment",
+      status: "pending",
+      expiresAt: new Date("2030-01-01T00:00:00Z"),
+      email: "buyer@example.com",
+      paymentId: "payment-sensitive-123",
+      telegramMessages: [
+        { chatId: 1001, messageId: 51, botId: "primary" },
+        { chatId: 1001, messageId: 52, botId: "secondary" },
+      ],
+    };
+    const telegramCalls = [];
+    let updates = 0;
+    const telegram = async (method, params, routedBotId) => {
+      telegramCalls.push({ method, params, botId: routedBotId });
+    };
+    const dependencies = {
+      adminIds: new Set(["1001"]),
+      telegram,
+      getRequest: async () => request,
+      expireRequest: async () => false,
+      decideRequest: async (_id, decision) => {
+        updates += 1;
+        if (request.status !== "pending") return false;
+        request.status = decision;
+        request.email = null;
+        request.paymentId = null;
+        return true;
+      },
+      redactMessages: (id, decision, messages, type) =>
+        redactReviewMessages(id, decision, messages, type, telegram),
+      now: () => new Date("2029-01-01T00:00:00Z"),
+    };
+    const makeCallback = (id, callbackAction, messageId) => ({
+      id,
+      from: { id: 1001 },
+      data: `payreview:${callbackAction}:${requestId}`,
+      message: {
+        message_id: messageId,
+        chat: { id: 1001 },
+      },
+    });
+
+    await processReviewCallback(
+      makeCallback("winner", action, botId === "primary" ? 51 : 52),
+      botId,
+      dependencies,
+    );
+    await processReviewCallback(
+      makeCallback(
+        "later",
+        otherAction,
+        otherBotId === "primary" ? 51 : 52,
+      ),
+      otherBotId,
+      dependencies,
+    );
+
+    assert.equal(request.status, outcome);
+    assert.equal(request.email, null);
+    assert.equal(request.paymentId, null);
+    assert.equal(updates, 1);
+    const edits = telegramCalls.filter(({ method }) =>
+      method === "editMessageText"
+    );
+    assert.deepEqual(edits.map(({ botId: routedBotId }) => routedBotId).sort(), [
+      "primary",
+      "secondary",
+    ]);
+    assert.deepEqual(edits.map(({ params }) => params.message_id).sort(), [
+      51,
+      52,
+    ]);
+    assert.ok(edits.every(({ params }) =>
+      !params.text.includes("buyer@example.com") &&
+      !params.text.includes("payment-sensitive-123") &&
+      params.reply_markup.inline_keyboard.length === 0
+    ));
+    assert.ok(telegramCalls.some(({ method, params, botId: routedBotId }) =>
+      method === "answerCallbackQuery" &&
+      params.callback_query_id === "winner" &&
+      routedBotId === botId &&
+      params.text === (outcome === "approved" ? "Marked Right." : "Marked Wrong.")
+    ));
+    assert.ok(telegramCalls.some(({ method, params, botId: routedBotId }) =>
+      method === "answerCallbackQuery" &&
+      params.callback_query_id === "later" &&
+      routedBotId === otherBotId &&
+      params.text === "This request was already reviewed."
+    ));
+  });
+}
+
+test("legacy primary-only message pointers redact through the primary bot", async () => {
+  const calls = [];
+  await redactReviewMessages(
+    "12345678-1234-4234-8234-123456789abc",
+    "rejected",
+    [{ chatId: 1001, messageId: 77 }],
+    "payment",
+    async (method, params, botId) => calls.push({ method, params, botId }),
+  );
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].method, "editMessageText");
+  assert.equal(calls[0].botId, "primary");
+  assert.equal(calls[0].params.message_id, 77);
+  assert.match(calls[0].params.text, /Wrong\. Submitted details removed\./);
 });
