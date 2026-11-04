@@ -127,7 +127,7 @@ function Home() {
           <Feature icon={<ChartNoAxesColumnIncreasing />} title="24/7 Trading" detail="Non-Stop Operations" />
         </section>
         <footer className="access-footer">
-          <a href="#help" onClick={(e) => e.preventDefault()}><Headphones />Help &amp; Support</a>
+          <a href="https://t.me/Trader_Rihab07" target="_blank" rel="noopener noreferrer"><Headphones />Help &amp; Support</a>
           <i />
           <Link href="/terms" data-testid="link-terms"><FileText />条款与风险披露</Link>
         </footer>
