@@ -329,6 +329,7 @@ for (const { botId, action, outcome, otherBotId, otherAction } of [
       botId,
       dependencies,
     );
+    const winnerCallCount = telegramCalls.length;
     await processReviewCallback(
       makeCallback(
         "later",
@@ -343,7 +344,10 @@ for (const { botId, action, outcome, otherBotId, otherAction } of [
     assert.equal(request.email, null);
     assert.equal(request.paymentId, null);
     assert.equal(updates, 1);
-    const edits = telegramCalls.filter(({ method }) =>
+    const winnerEdits = telegramCalls.slice(0, winnerCallCount).filter(({ method }) =>
+      method === "editMessageText"
+    );
+    const allEdits = telegramCalls.filter(({ method }) =>
       method === "editMessageText"
     );
     const winnerAckIndex = telegramCalls.findIndex(({ method, params }) =>
@@ -356,15 +360,15 @@ for (const { botId, action, outcome, otherBotId, otherAction } of [
     assert.ok(winnerAckIndex >= 0);
     assert.ok(firstEditIndex >= 0);
     assert.ok(winnerAckIndex < firstEditIndex);
-    assert.deepEqual(edits.map(({ botId: routedBotId }) => routedBotId).sort(), [
+    assert.deepEqual(winnerEdits.map(({ botId: routedBotId }) => routedBotId).sort(), [
       "primary",
       "secondary",
     ]);
-    assert.deepEqual(edits.map(({ params }) => params.message_id).sort(), [
+    assert.deepEqual(winnerEdits.map(({ params }) => params.message_id).sort(), [
       51,
       52,
     ]);
-    assert.ok(edits.every(({ params }) =>
+    assert.ok(allEdits.every(({ params }) =>
       !params.text.includes("buyer@example.com") &&
       !params.text.includes("payment-sensitive-123") &&
       params.reply_markup.inline_keyboard.length === 0
