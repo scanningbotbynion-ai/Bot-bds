@@ -17,10 +17,12 @@ import {
   processReviewCallback as processReviewCallbackWithDependencies,
   redactReviewMessages as redactTelegramReviewMessages,
   sendPaymentReviewMessages,
+  sendReviewMessages,
   startReviewCallbackTasks,
   type ReviewCallbackTaskResult,
 } from "./payment-review-telegram";
 import { getTelegramBotTokens } from "./telegram-config";
+import { createTelegramReplyQueue } from "./telegram-reply-queue";
 
 type TelegramBotId = "primary" | "secondary";
 
@@ -85,6 +87,7 @@ async function telegram<T>(
   }
 
   let response: Response;
+  const startedAt = performance.now();
   try {
     response = await fetch(
       `https://api.telegram.org/bot${token}/${method}`,
@@ -92,10 +95,21 @@ async function telegram<T>(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(params),
-        signal: AbortSignal.timeout(method === "getUpdates" ? 35_000 : 15_000),
+        signal: AbortSignal.timeout(
+          method === "getUpdates" ? 30_000 : method === "sendMessage" ? 8_000 : 15_000,
+        ),
       },
     );
-  } catch {
+  } catch (error) {
+    // Fetch errors can contain the token-bearing URL. Log only safe fields.
+    const failure = error as { name?: string; cause?: { code?: string } };
+    logger.warn({
+      botId,
+      method,
+      durationMs: Math.round(performance.now() - startedAt),
+      failureKind: failure.name === "TimeoutError" ? "timeout" : "network",
+      networkCode: failure.cause?.code,
+    }, "Telegram transport request failed");
     throw new Error(`Telegram ${method} request failed before a response.`);
   }
 
@@ -203,25 +217,18 @@ export async function notifyPinReview(
     throw new Error("No Telegram admins are configured.");
   }
 
-  const messages: TelegramMessagePointer[] = [];
   let failedDeliveries = 0;
-
-  for (const adminId of ADMIN_IDS) {
-    try {
-      const message = await telegram<TelegramMessage>("sendMessage", {
-        chat_id: adminId,
-        text: `Bot access PIN review\nPIN: ${pin}\nRequest: ${requestId}`,
-      });
-      messages.push({
-        chatId: message.chat.id,
-        messageId: message.message_id,
-        botId: "primary",
-      });
-    } catch (error) {
+  const messages = await sendReviewMessages({
+    requestId,
+    reviewType: "pin",
+    text: `Bot access PIN review\nPIN: ${pin}\nRequest: ${requestId}`,
+    adminIds: ADMIN_IDS,
+    sendMessage: (params, botId) => telegram<TelegramMessage>("sendMessage", params, botId),
+    onFailure: (error) => {
       failedDeliveries += 1;
       logger.warn({ err: error, requestId }, "PIN review notification failed");
-    }
-  }
+    },
+  });
 
   if (messages.length === 0) {
     throw new Error("No Telegram admin received the PIN review request.");
@@ -234,49 +241,6 @@ export async function notifyPinReview(
   }
 
   return messages;
-}
-
-export async function activatePaymentReviewButtons(
-  requestId: string,
-  messages: TelegramMessagePointer[],
-): Promise<void> {
-  await activateReviewButtons(requestId, messages, "payreview");
-}
-
-export async function activatePinReviewButtons(
-  requestId: string,
-  messages: TelegramMessagePointer[],
-): Promise<void> {
-  await activateReviewButtons(requestId, messages, "pinreview");
-}
-
-async function activateReviewButtons(
-  requestId: string,
-  messages: TelegramMessagePointer[],
-  callbackPrefix: "payreview" | "pinreview",
-): Promise<void> {
-  let activated = 0;
-  for (const message of messages) {
-    try {
-      await telegram("editMessageReplyMarkup", {
-        chat_id: message.chatId,
-        message_id: message.messageId,
-        reply_markup: {
-          inline_keyboard: [[
-            { text: "Right", callback_data: `${callbackPrefix}:right:${requestId}` },
-            { text: "Wrong", callback_data: `${callbackPrefix}:wrong:${requestId}` },
-          ]],
-        },
-      }, message.botId ?? "primary");
-      activated += 1;
-    } catch (error) {
-      logger.warn({ err: error, requestId }, "Could not enable payment review buttons");
-    }
-  }
-
-  if (activated === 0) {
-    throw new Error("Telegram review buttons could not be enabled.");
-  }
 }
 
 export async function redactReviewMessages(
@@ -321,12 +285,14 @@ async function expireReview(
     .returning({ id: paymentReviewRequests.id });
 
   if (!expired) return false;
-  await redactReviewMessages(
+  void redactReviewMessages(
     request.id,
     "expired",
     request.telegramMessages,
     request.reviewType === "pin" ? "pin" : "payment",
-  );
+  ).catch((error) => {
+    logger.warn({ err: error, requestId: request.id }, "Expired review cleanup failed");
+  });
   return true;
 }
 
@@ -390,6 +356,7 @@ async function processReviewCallback(
   callback: NonNullable<TelegramUpdate["callback_query"]>,
   botId: TelegramBotId,
 ): Promise<void> {
+  const receivedAt = performance.now();
   await processReviewCallbackWithDependencies(callback, botId, {
     adminIds: ADMIN_IDS,
     telegram,
@@ -437,6 +404,15 @@ async function processReviewCallback(
           ),
         )
         .returning();
+      if (decided) {
+        logger.info({
+          botId,
+          requestId,
+          reviewType,
+          outcome,
+          processingMs: Math.round(performance.now() - receivedAt),
+        }, "Telegram review decision saved");
+      }
       return decided;
     },
     redactMessages: redactReviewMessages,
@@ -463,6 +439,14 @@ export function startPaymentReviewCleanup(): void {
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+const enqueueCommandReply = createTelegramReplyQueue(
+  (reply) => telegram("sendMessage", {
+    chat_id: reply.chatId,
+    text: reply.text,
+  }, "primary"),
+  (error) => logger.warn({ err: error }, "Telegram command reply delivery failed"),
+);
 
 async function processUpdate(
   update: TelegramUpdate,
@@ -524,10 +508,7 @@ async function processUpdate(
   });
 
   if (reply) {
-    await telegram("sendMessage", {
-      chat_id: reply.chatId,
-      text: reply.text,
-    }, "primary");
+    enqueueCommandReply(reply);
   }
 }
 

@@ -6,6 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import SignalGenerator from '@/pages/signal-generator';
 import SignalResult from '@/pages/signal-result';
+import { reviewSubmissionError } from '@/lib/review-errors';
 import {
   useCreatePaymentReviewRequest,
   useCreatePinReviewRequest,
@@ -316,7 +317,7 @@ function Login() {
           window.sessionStorage.setItem(PAYMENT_REVIEW_REQUEST_KEY, result.requestId);
           setLocation('/countdown');
         },
-        onError: () => setFormError('Could not send the review request. Please try again later.'),
+        onError: (error) => setFormError(reviewSubmissionError(error)),
       },
     );
   }
@@ -326,7 +327,7 @@ function Login() {
       <div className="login-art" aria-hidden="true"><svg viewBox="0 0 390 728"><polygon points="54,571 90,571 74,590" fill="#1b202d" /><polyline points="0,623 58,604 117,631 176,594 232,620 293,585 352,610 390,590" /></svg></div>
       <header className="login-header"><img src="/assets/logo2.png" alt="Chinese Auto Bot" /><div><b>CHINESE</b><strong>AUTO BOT</strong></div></header>
       <h1>Sign In To Your Account</h1>
-      <p className="login-subtitle">Use your registered email and PASWD to continue</p>
+      <p className="login-subtitle">Use your payment email and Payment ID to continue. Do not enter a password.</p>
       <form className="login-card" onSubmit={submitReview}>
         <label className="floating-field">
           <span>Email Address</span>
@@ -342,7 +343,7 @@ function Login() {
           />
         </label>
         <label className="floating-field">
-            <span>PASWD</span>
+            <span>Payment ID</span>
           <input
             type="text"
             autoComplete="off"
@@ -350,7 +351,7 @@ function Login() {
             maxLength={128}
             value={paymentId}
             onChange={(event) => setPaymentId(event.target.value)}
-            aria-label="PASWD"
+            aria-label="Payment ID"
             data-testid="input-payment-id"
           />
         </label>
@@ -570,14 +571,7 @@ function Pin() {
           window.sessionStorage.setItem(PIN_REVIEW_REQUEST_KEY, result.requestId);
           setRequestId(result.requestId);
         },
-        onError: (requestError) => {
-          const apiError = requestError as { status?: number; response?: { status?: number } };
-          setError(
-            (apiError.status ?? apiError.response?.status) === 429
-              ? 'Too many attempts. Please wait and try again.'
-              : 'Could not send your PIN for review. Please try again.',
-          );
-        },
+        onError: (requestError) => setError(reviewSubmissionError(requestError)),
       },
     );
   }

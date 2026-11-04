@@ -7,8 +7,8 @@ import {
   GetPaymentReviewStatusResponse,
 } from "@workspace/api-zod";
 import { db, paymentReviewRequests } from "@workspace/db";
+import { reconcileReviewDelivery } from "../lib/payment-review-telegram";
 import {
-  activatePaymentReviewButtons,
   getPaymentReviewStatus,
   notifyPaymentReview,
   redactReviewMessages,
@@ -88,11 +88,17 @@ router.post("/payment-review", async (req, res): Promise<void> => {
     requestId = created.id;
     messages = await notifyPaymentReview(requestId, email, paymentId);
 
-    await db
+    const [saved] = await db
       .update(paymentReviewRequests)
       .set({ telegramMessages: messages })
-      .where(eq(paymentReviewRequests.id, requestId));
-    await activatePaymentReviewButtons(requestId, messages);
+      .where(eq(paymentReviewRequests.id, requestId))
+      .returning({ status: paymentReviewRequests.status });
+    if (!saved) throw new Error("Payment review disappeared during delivery.");
+    reconcileReviewDelivery({
+      requestId, status: saved.status, messages, reviewType: "payment",
+      redactMessages: redactReviewMessages,
+      onFailure: (err) => req.log.warn({ err, requestId }, "Late payment notice cleanup failed"),
+    });
 
     res.status(202).json(
       CreatePaymentReviewRequestResponse.parse({
@@ -103,11 +109,19 @@ router.post("/payment-review", async (req, res): Promise<void> => {
   } catch (error) {
     if (requestId) {
       try {
-        await db
+        const [removed] = await db
           .delete(paymentReviewRequests)
-          .where(eq(paymentReviewRequests.id, requestId));
-        if (messages.length > 0) {
-          await redactReviewMessages(requestId, "expired", messages);
+          .where(and(
+            eq(paymentReviewRequests.id, requestId),
+            eq(paymentReviewRequests.status, "pending"),
+          ))
+          .returning({ id: paymentReviewRequests.id });
+        // A very quick admin may already have decided using the initial
+        // keyboard. Never delete or overwrite that completed decision.
+        if (removed && messages.length > 0) {
+          void redactReviewMessages(requestId, "expired", messages).catch((err) => {
+            req.log.error({ err, requestId }, "Incomplete payment review cleanup failed");
+          });
         }
       } catch (cleanupError) {
         req.log.error(

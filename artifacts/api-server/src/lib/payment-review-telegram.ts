@@ -38,14 +38,41 @@ export async function sendPaymentReviewMessages(options: {
   ) => Promise<{ message_id: number; chat: { id: number } }>;
   onFailure?: (error: unknown) => void;
 }): Promise<TelegramMessagePointer[]> {
-  const messages: TelegramMessagePointer[] = [];
+  return sendReviewMessages({
+    ...options,
+    reviewType: "payment",
+    text: `Payment review\nEmail: ${options.email}\nPayment ID: ${options.paymentId}\nRequest: ${options.requestId}`,
+  });
+}
 
-  for (const adminId of options.adminIds) {
+export async function sendReviewMessages(options: {
+  requestId: string;
+  reviewType: "payment" | "pin";
+  text: string;
+  adminIds: Iterable<string>;
+  sendMessage: (
+    params: Record<string, unknown>,
+    botId: "primary",
+  ) => Promise<{ message_id: number; chat: { id: number } }>;
+  onFailure?: (error: unknown) => void;
+}): Promise<TelegramMessagePointer[]> {
+  const messages: TelegramMessagePointer[] = [];
+  const prefix = options.reviewType === "pin" ? "pinreview" : "payreview";
+
+  // The request already exists before delivery. Include working buttons in the
+  // original message: a second edit request can time out after delivery succeeds.
+  // A slow/unreachable admin must not serialize delivery to everyone else.
+  await Promise.all([...new Set(options.adminIds)].map(async (adminId) => {
     try {
       const message = await options.sendMessage({
         chat_id: adminId,
-        text:
-          `Payment review\nEmail: ${options.email}\nPayment ID: ${options.paymentId}\nRequest: ${options.requestId}`,
+        text: options.text,
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "Right", callback_data: `${prefix}:right:${options.requestId}` },
+            { text: "Wrong", callback_data: `${prefix}:wrong:${options.requestId}` },
+          ]],
+        },
       }, "primary");
       messages.push({
         chatId: message.chat.id,
@@ -55,7 +82,7 @@ export async function sendPaymentReviewMessages(options: {
     } catch (error) {
       options.onFailure?.(error);
     }
-  }
+  }));
 
   return messages;
 }
@@ -91,6 +118,10 @@ export async function redactReviewMessages(
         reply_markup: { inline_keyboard: [] },
       }, message.botId ?? "primary");
     } catch (error) {
+      // An already-redacted message is a successful, idempotent cleanup.
+      if (error instanceof Error && /message is not modified/i.test(error.message)) {
+        return;
+      }
       onFailure?.(error);
     }
   }));
@@ -103,6 +134,28 @@ type ReviewRequest = {
   expiresAt: Date;
   telegramMessages: TelegramMessagePointer[];
 };
+
+export function reconcileReviewDelivery(options: {
+  requestId: string;
+  status: string;
+  reviewType: "payment" | "pin";
+  messages: TelegramMessagePointer[];
+  redactMessages: (
+    requestId: string,
+    outcome: "approved" | "rejected" | "expired",
+    messages: TelegramMessagePointer[],
+    reviewType: "payment" | "pin",
+  ) => Promise<void>;
+  onFailure: (error: unknown) => void;
+}): void {
+  const { status } = options;
+  if (status !== "approved" && status !== "rejected" && status !== "expired") return;
+  // An admin may click while other admin deliveries are still in flight.
+  // Reconcile after pointers are saved so late notices are redacted as well.
+  void options.redactMessages(
+    options.requestId, status, options.messages, options.reviewType,
+  ).catch(options.onFailure);
+}
 
 function isExpiredCallbackQueryError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);

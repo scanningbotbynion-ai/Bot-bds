@@ -7,8 +7,8 @@ import {
   GetPinReviewStatusResponse,
 } from "@workspace/api-zod";
 import { db, paymentReviewRequests } from "@workspace/db";
+import { reconcileReviewDelivery } from "../lib/payment-review-telegram";
 import {
-  activatePinReviewButtons,
   getPinReviewStatus,
   notifyPinReview,
   redactReviewMessages,
@@ -79,11 +79,17 @@ router.post("/pin-review", async (req, res): Promise<void> => {
     // explicitly consented review and is removed from Telegram after a decision.
     messages = await notifyPinReview(requestId, parsed.data.pin);
 
-    await db
+    const [saved] = await db
       .update(paymentReviewRequests)
       .set({ telegramMessages: messages })
-      .where(eq(paymentReviewRequests.id, requestId));
-    await activatePinReviewButtons(requestId, messages);
+      .where(eq(paymentReviewRequests.id, requestId))
+      .returning({ status: paymentReviewRequests.status });
+    if (!saved) throw new Error("PIN review disappeared during delivery.");
+    reconcileReviewDelivery({
+      requestId, status: saved.status, messages, reviewType: "pin",
+      redactMessages: redactReviewMessages,
+      onFailure: (err) => req.log.warn({ err, requestId }, "Late PIN notice cleanup failed"),
+    });
 
     res.status(202).json(
       CreatePinReviewRequestResponse.parse({
@@ -94,11 +100,17 @@ router.post("/pin-review", async (req, res): Promise<void> => {
   } catch (error) {
     if (requestId) {
       try {
-        await db
+        const [removed] = await db
           .delete(paymentReviewRequests)
-          .where(eq(paymentReviewRequests.id, requestId));
-        if (messages.length > 0) {
-          await redactReviewMessages(requestId, "expired", messages, "pin");
+          .where(and(
+            eq(paymentReviewRequests.id, requestId),
+            eq(paymentReviewRequests.status, "pending"),
+          ))
+          .returning({ id: paymentReviewRequests.id });
+        if (removed && messages.length > 0) {
+          void redactReviewMessages(requestId, "expired", messages, "pin").catch((err) => {
+            req.log.error({ err, requestId }, "Incomplete PIN review cleanup failed");
+          });
         }
       } catch (cleanupError) {
         req.log.error(
