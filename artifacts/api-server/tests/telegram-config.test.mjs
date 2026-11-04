@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getTelegramBotTokens } from "../src/lib/telegram-config.ts";
 
-test("production uses only production Telegram bot tokens", () => {
+test("production uses one primary bot and retains the old token for cleanup", () => {
   assert.deepEqual(
     getTelegramBotTokens("production", {
       TELEGRAM_BOT_TOKEN: "prod-primary",
@@ -12,7 +12,7 @@ test("production uses only production Telegram bot tokens", () => {
     }),
     {
       primary: "prod-primary",
-      secondary: "prod-secondary",
+      legacyCleanup: "prod-secondary",
       hasDevelopmentConflict: false,
     },
   );
@@ -24,7 +24,11 @@ test("development uses isolated tokens and never falls back to production", () =
       TELEGRAM_BOT_TOKEN: "prod-primary",
       TELEGRAM_BOT_TOKEN_2: "prod-secondary",
     }),
-    { primary: undefined, secondary: undefined, hasDevelopmentConflict: false },
+    {
+      primary: undefined,
+      legacyCleanup: undefined,
+      hasDevelopmentConflict: false,
+    },
   );
   assert.deepEqual(
     getTelegramBotTokens("development", {
@@ -34,7 +38,7 @@ test("development uses isolated tokens and never falls back to production", () =
     }),
     {
       primary: "dev-primary",
-      secondary: "dev-secondary",
+      legacyCleanup: "dev-secondary",
       hasDevelopmentConflict: false,
     },
   );

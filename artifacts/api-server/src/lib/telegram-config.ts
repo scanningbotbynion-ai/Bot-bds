@@ -4,7 +4,7 @@ export type TelegramTokenEnvironment = Readonly<
 
 export type TelegramBotTokens = {
   primary?: string;
-  secondary?: string;
+  legacyCleanup?: string;
   hasDevelopmentConflict: boolean;
 };
 
@@ -20,7 +20,7 @@ export function getTelegramBotTokens(
   if (nodeEnv === "production") {
     return {
       primary: readToken(env.TELEGRAM_BOT_TOKEN),
-      secondary: readToken(env.TELEGRAM_BOT_TOKEN_2),
+      legacyCleanup: readToken(env.TELEGRAM_BOT_TOKEN_2),
       hasDevelopmentConflict: false,
     };
   }
@@ -30,11 +30,11 @@ export function getTelegramBotTokens(
     readToken(env.TELEGRAM_BOT_TOKEN_2),
   ].filter((token): token is string => token !== undefined));
   const primary = readToken(env.TELEGRAM_DEV_BOT_TOKEN);
-  const secondary = readToken(env.TELEGRAM_DEV_BOT_TOKEN_2);
-  const hasDevelopmentConflict = [primary, secondary]
+  const legacyCleanup = readToken(env.TELEGRAM_DEV_BOT_TOKEN_2);
+  const hasDevelopmentConflict = [primary, legacyCleanup]
     .some((token) => token !== undefined && productionTokens.has(token));
 
   return hasDevelopmentConflict
     ? { hasDevelopmentConflict: true }
-    : { primary, secondary, hasDevelopmentConflict: false };
+    : { primary, legacyCleanup, hasDevelopmentConflict: false };
 }

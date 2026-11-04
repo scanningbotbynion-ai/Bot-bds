@@ -25,7 +25,6 @@ export type TelegramKeyState = {
 
 export type TelegramBotHealth = {
   primary: TelegramBotHealthEntry;
-  secondary: TelegramBotHealthEntry;
 };
 
 export type TelegramBotHealthEntry = {
@@ -78,7 +77,6 @@ function commandReply(
       reply: [
         "Telegram bot status",
         describeBot("Primary", botHealth?.primary),
-        describeBot("Secondary", botHealth?.secondary),
       ].join("\n"),
     };
   }

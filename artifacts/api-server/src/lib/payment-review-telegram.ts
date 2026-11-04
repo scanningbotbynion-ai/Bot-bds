@@ -32,31 +32,28 @@ export async function sendPaymentReviewMessages(options: {
   email: string;
   paymentId: string;
   adminIds: Iterable<string>;
-  botIds: ReviewBotId[];
   sendMessage: (
     params: Record<string, unknown>,
-    botId: ReviewBotId,
+    botId: "primary",
   ) => Promise<{ message_id: number; chat: { id: number } }>;
-  onFailure?: (error: unknown, botId: ReviewBotId) => void;
+  onFailure?: (error: unknown) => void;
 }): Promise<TelegramMessagePointer[]> {
   const messages: TelegramMessagePointer[] = [];
 
-  for (const botId of options.botIds) {
-    for (const adminId of options.adminIds) {
-      try {
-        const message = await options.sendMessage({
-          chat_id: adminId,
-          text:
-            `Payment review\nEmail: ${options.email}\nPayment ID: ${options.paymentId}\nRequest: ${options.requestId}`,
-        }, botId);
-        messages.push({
-          chatId: message.chat.id,
-          messageId: message.message_id,
-          botId,
-        });
-      } catch (error) {
-        options.onFailure?.(error, botId);
-      }
+  for (const adminId of options.adminIds) {
+    try {
+      const message = await options.sendMessage({
+        chat_id: adminId,
+        text:
+          `Payment review\nEmail: ${options.email}\nPayment ID: ${options.paymentId}\nRequest: ${options.requestId}`,
+      }, "primary");
+      messages.push({
+        chatId: message.chat.id,
+        messageId: message.message_id,
+        botId: "primary",
+      });
+    } catch (error) {
+      options.onFailure?.(error);
     }
   }
 

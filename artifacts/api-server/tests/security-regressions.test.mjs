@@ -292,17 +292,12 @@ test("all admin key commands support help, bot mentions, validation, and key rot
   );
 });
 
-test("only admins can check both Telegram bots without exposing secrets", () => {
+test("only admins can check the Telegram bot without exposing secrets", () => {
   const health = {
     primary: {
       configured: true,
       polling: "polling",
       lastSuccessfulPollAt: "2026-11-04T12:34:56.000Z",
-    },
-    secondary: {
-      configured: false,
-      polling: "disabled",
-      lastSuccessfulPollAt: null,
     },
   };
   const currentState = { key: "SECRETKEY", updateOffset: 0 };
@@ -344,7 +339,6 @@ test("only admins can check both Telegram bots without exposing secrets", () => 
     [
       "Telegram bot status",
       "Primary: configured: yes; polling: polling; last successful poll: 2026-11-04T12:34:56.000Z",
-      "Secondary: configured: no; polling: disabled; last successful poll: never",
     ].join("\n"),
   );
   assert.equal(authorized.key, "SECRETKEY");
@@ -420,14 +414,13 @@ test("a committed Telegram update is skipped after restart", () => {
   assert.equal(generatedKeys, 1);
 });
 
-test("payment review notifications are sent through both configured bots", async () => {
+test("payment review notifications are sent only through the primary bot", async () => {
   const sent = [];
   const messages = await sendPaymentReviewMessages({
     requestId: "12345678-1234-4234-8234-123456789abc",
     email: "buyer@example.com",
     paymentId: "payment-sensitive-123",
     adminIds: ["1001"],
-    botIds: ["primary", "secondary"],
     sendMessage: async (params, botId) => {
       sent.push({ params, botId });
       return {
@@ -437,12 +430,9 @@ test("payment review notifications are sent through both configured bots", async
     },
   });
 
-  assert.deepEqual(sent.map(({ botId }) => botId), ["primary", "secondary"]);
-  assert.deepEqual(messages.map(({ botId }) => botId), [
-    "primary",
-    "secondary",
-  ]);
-  assert.deepEqual(messages.map(({ messageId }) => messageId), [1, 2]);
+  assert.deepEqual(sent.map(({ botId }) => botId), ["primary"]);
+  assert.deepEqual(messages.map(({ botId }) => botId), ["primary"]);
+  assert.deepEqual(messages.map(({ messageId }) => messageId), [1]);
   assert.ok(sent.every(({ params }) =>
     params.text.includes("buyer@example.com") &&
     params.text.includes("payment-sensitive-123")

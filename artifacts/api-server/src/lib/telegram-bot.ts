@@ -11,7 +11,6 @@ import {
   applyTelegramUpdate,
   parseAdminIds,
   type TelegramBotHealth,
-  type TelegramBotHealthEntry,
   type TelegramUpdate,
 } from "./telegram-update";
 import {
@@ -25,35 +24,23 @@ import { getTelegramBotTokens } from "./telegram-config";
 
 type TelegramBotId = "primary" | "secondary";
 
-const { primary, secondary, hasDevelopmentConflict } = getTelegramBotTokens(
+const { primary, legacyCleanup, hasDevelopmentConflict } = getTelegramBotTokens(
   process.env.NODE_ENV,
   process.env,
 );
 const BOT_TOKENS: Record<TelegramBotId, string | undefined> = {
   primary,
-  secondary,
+  // Legacy messages from the retired bot may still need their details redacted.
+  secondary: legacyCleanup,
 };
 const PRIMARY_TOKEN_ENV = process.env.NODE_ENV === "production"
   ? "TELEGRAM_BOT_TOKEN"
   : "TELEGRAM_DEV_BOT_TOKEN";
-const SECONDARY_TOKEN_ENV = process.env.NODE_ENV === "production"
-  ? "TELEGRAM_BOT_TOKEN_2"
-  : "TELEGRAM_DEV_BOT_TOKEN_2";
 const ADMIN_IDS = parseAdminIds(process.env.ADMIN_IDS);
-const BOT_POLL_HEALTH: Record<TelegramBotId, TelegramBotHealthEntry> = {
+const BOT_POLL_HEALTH: TelegramBotHealth = {
   primary: {
     configured: Boolean(BOT_TOKENS.primary),
     polling: BOT_TOKENS.primary && !hasDevelopmentConflict && ADMIN_IDS.size > 0
-      ? "not_started"
-      : "disabled",
-    lastSuccessfulPollAt: null,
-  },
-  secondary: {
-    configured: Boolean(BOT_TOKENS.secondary),
-    polling: BOT_TOKENS.secondary &&
-        BOT_TOKENS.secondary !== BOT_TOKENS.primary &&
-        !hasDevelopmentConflict &&
-        ADMIN_IDS.size > 0
       ? "not_started"
       : "disabled",
     lastSuccessfulPollAt: null,
@@ -65,7 +52,7 @@ const BOT_COMMANDS = [
   { command: "key", description: "Show the current access key" },
   { command: "newkey", description: "Generate a new access key" },
   { command: "setkey", description: "Set key: /setkey NEWKEY" },
-  { command: "botstatus", description: "Check both bots' polling health" },
+  { command: "botstatus", description: "Check the bot's polling health" },
 ];
 
 type TelegramResponse<T> = {
@@ -84,10 +71,7 @@ type TelegramBotIdentity = {
 };
 
 function getTelegramBotHealth(): TelegramBotHealth {
-  return {
-    primary: { ...BOT_POLL_HEALTH.primary },
-    secondary: { ...BOT_POLL_HEALTH.secondary },
-  };
+  return { primary: { ...BOT_POLL_HEALTH.primary } };
 }
 
 async function telegram<T>(
@@ -176,24 +160,20 @@ export async function notifyPaymentReview(
   }
 
   let failedDeliveries = 0;
-  const botIds = BOT_TOKENS.secondary
-    ? ["primary", "secondary"] as const
-    : ["primary"] as const;
   const messages = await sendPaymentReviewMessages({
     requestId,
     email,
     paymentId,
     adminIds: ADMIN_IDS,
-    botIds: [...botIds],
     sendMessage: (params, botId) => telegram<TelegramMessage>(
       "sendMessage",
       params,
       botId,
     ),
-    onFailure: (error, botId) => {
+    onFailure: (error) => {
       failedDeliveries += 1;
       logger.warn(
-        { err: error, requestId, botId },
+        { err: error, requestId, botId: "primary" },
         "Payment review notification failed",
       );
     },
@@ -485,7 +465,6 @@ function delay(ms: number): Promise<void> {
 
 async function processUpdate(
   update: TelegramUpdate,
-  botId: TelegramBotId = "primary",
   callbackTask?: Promise<ReviewCallbackTaskResult>,
 ): Promise<void> {
   if (update.callback_query) {
@@ -493,7 +472,7 @@ async function processUpdate(
       const result = await callbackTask;
       if (!result.ok) throw result.error;
     } else {
-      await processReviewCallback(update.callback_query, botId);
+      await processReviewCallback(update.callback_query, "primary");
     }
   }
 
@@ -509,13 +488,7 @@ async function processUpdate(
       throw new Error("Access-key state is missing from the database.");
     }
 
-    const offsetField = botId === "primary"
-      ? "updateOffset"
-      : "secondaryUpdateOffset";
-    const offsetColumn = botId === "primary"
-      ? accessKeyState.updateOffset
-      : accessKeyState.secondaryUpdateOffset;
-    const currentOffset = state[offsetField];
+    const currentOffset = state.updateOffset;
     const updateResult = applyTelegramUpdate(
       update,
       { key: state.key, updateOffset: currentOffset },
@@ -533,13 +506,13 @@ async function processUpdate(
       .update(accessKeyState)
       .set({
         key: updateResult.key,
-        [offsetField]: updateResult.updateOffset,
+        updateOffset: updateResult.updateOffset,
         updatedAt: new Date(),
       })
       .where(
         and(
           eq(accessKeyState.id, 1),
-          eq(offsetColumn, currentOffset),
+          eq(accessKeyState.updateOffset, currentOffset),
         ),
       )
       .returning({ id: accessKeyState.id });
@@ -553,20 +526,17 @@ async function processUpdate(
     await telegram("sendMessage", {
       chat_id: reply.chatId,
       text: reply.text,
-    }, botId);
+    }, "primary");
   }
 }
 
-async function pollTelegram(botId: TelegramBotId): Promise<void> {
+async function pollTelegram(): Promise<void> {
   let retryDelay = 1_000;
 
   while (true) {
     try {
-      const offsetColumn = botId === "primary"
-        ? accessKeyState.updateOffset
-        : accessKeyState.secondaryUpdateOffset;
       const [state] = await db
-        .select({ updateOffset: offsetColumn })
+        .select({ updateOffset: accessKeyState.updateOffset })
         .from(accessKeyState)
         .where(eq(accessKeyState.id, 1))
         .limit(1);
@@ -575,20 +545,20 @@ async function pollTelegram(botId: TelegramBotId): Promise<void> {
         throw new Error("Access-key state is missing from the database.");
       }
 
-      BOT_POLL_HEALTH[botId].polling = "polling";
+      BOT_POLL_HEALTH.primary.polling = "polling";
       const updates = await telegram<TelegramUpdate[]>("getUpdates", {
         offset: state.updateOffset,
         timeout: 25,
         allowed_updates: ["message", "callback_query"],
-      }, botId);
-      BOT_POLL_HEALTH[botId].lastSuccessfulPollAt = new Date().toISOString();
+      }, "primary");
+      BOT_POLL_HEALTH.primary.lastSuccessfulPollAt = new Date().toISOString();
 
       const callbackTasks = startReviewCallbackTasks(
         updates,
-        (callback) => processReviewCallback(callback, botId),
+        (callback) => processReviewCallback(callback, "primary"),
       );
       for (let index = 0; index < updates.length; index += 1) {
-        await processUpdate(updates[index], botId, callbackTasks[index]);
+        await processUpdate(updates[index], callbackTasks[index]);
       }
       retryDelay = 1_000;
     } catch (error) {
@@ -597,14 +567,14 @@ async function pollTelegram(botId: TelegramBotId): Promise<void> {
         /webhook is active/i.test(error.message)
       ) {
         logger.error(
-          { botId },
+          { botId: "primary" },
           "Telegram polling paused because this bot has an active webhook. Keep it in place or remove it before using polling.",
         );
-        BOT_POLL_HEALTH[botId].polling = "paused";
+        BOT_POLL_HEALTH.primary.polling = "paused";
         return;
       }
-      BOT_POLL_HEALTH[botId].polling = "retrying";
-      logger.error({ err: error, botId }, "Telegram polling failed; retrying");
+      BOT_POLL_HEALTH.primary.polling = "retrying";
+      logger.error({ err: error, botId: "primary" }, "Telegram polling failed; retrying");
       await delay(retryDelay);
       retryDelay = Math.min(retryDelay * 2, 30_000);
     }
@@ -635,16 +605,5 @@ export function startTelegramBot(): void {
   }
 
   void initializeTelegramBot("primary");
-  void pollTelegram("primary");
-
-  if (BOT_TOKENS.secondary) {
-    if (BOT_TOKENS.secondary !== BOT_TOKENS.primary) {
-      void initializeTelegramBot("secondary");
-      void pollTelegram("secondary");
-    } else {
-      logger.error(
-        `Telegram secondary bot is disabled: ${SECONDARY_TOKEN_ENV} must differ from ${PRIMARY_TOKEN_ENV}.`,
-      );
-    }
-  }
+  void pollTelegram();
 }
