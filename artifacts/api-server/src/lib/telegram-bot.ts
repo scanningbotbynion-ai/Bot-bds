@@ -39,6 +39,10 @@ type TelegramMessage = {
   chat: { id: number };
 };
 
+type TelegramBotIdentity = {
+  username?: string;
+};
+
 async function telegram<T>(
   method: string,
   params: Record<string, unknown>,
@@ -82,6 +86,22 @@ async function telegram<T>(
   }
 
   return data.result;
+}
+
+function logBotIdentity(botId: TelegramBotId): void {
+  void telegram<TelegramBotIdentity>("getMe", {}, botId)
+    .then((identity) => {
+      logger.info(
+        { botId, username: identity.username },
+        "Telegram bot token verified",
+      );
+    })
+    .catch((error) => {
+      logger.error(
+        { err: error, botId },
+        "Telegram bot token verification failed",
+      );
+    });
 }
 
 export async function notifyPaymentReview(
@@ -523,9 +543,11 @@ export function startTelegramBot(): void {
     return;
   }
 
+  logBotIdentity("primary");
   void pollTelegram("primary");
 
   if (TELEGRAM_BOT_TOKEN_2 && TELEGRAM_BOT_TOKEN_2 !== TELEGRAM_BOT_TOKEN) {
+    logBotIdentity("secondary");
     void pollTelegram("secondary");
   } else if (TELEGRAM_BOT_TOKEN_2) {
     logger.error(
