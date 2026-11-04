@@ -85,11 +85,12 @@ async function telegram<T>(
   method: string,
   params: Record<string, unknown>,
   botId: TelegramBotId = "primary",
+  tokenOverride?: string,
 ): Promise<T> {
   const startedAt = performance.now();
   const result = await withCallbackRecovery(
     method,
-    () => telegramRequest<T>(method, params, botId),
+    () => telegramRequest<T>(method, params, botId, tokenOverride),
     () => logger.warn({ botId }, "Retrying Telegram callback acknowledgment after a transient failure"),
   );
   if (method === "answerCallbackQuery") {
@@ -105,8 +106,9 @@ async function telegramRequest<T>(
   method: string,
   params: Record<string, unknown>,
   botId: TelegramBotId,
+  tokenOverride?: string,
 ): Promise<T> {
-  const token = BOT_TOKENS[botId];
+  const token = tokenOverride ?? BOT_TOKENS[botId];
   if (!token) {
     throw new Error(`Telegram ${botId} bot token is not configured.`);
   }
@@ -596,6 +598,32 @@ export function startTelegramBot(): void {
     process.env.TELEGRAM_SHARED_API_URL?.trim()
   ) {
     logger.info("Preview uses the shared production review API; local Telegram polling is disabled.");
+    const sharedPrimaryToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (sharedPrimaryToken) {
+      void telegram<TelegramBotIdentity>(
+        "getMe",
+        {},
+        "primary",
+        sharedPrimaryToken,
+      ).then(
+        (identity) => {
+          logger.info(
+            { botId: "primary", username: identity.username },
+            "Preview verified the shared primary bot token; polling remains disabled.",
+          );
+        },
+        () => {
+          logger.warn(
+            { botId: "primary" },
+            "Preview could not verify the shared primary bot token.",
+          );
+        },
+      );
+    } else {
+      logger.warn(
+        "Preview cannot verify the shared primary bot because TELEGRAM_BOT_TOKEN is not available.",
+      );
+    }
     return;
   }
   if (
