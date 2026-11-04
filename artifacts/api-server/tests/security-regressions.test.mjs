@@ -194,7 +194,10 @@ test("all admin key commands support help, bot mentions, validation, and key rot
       generateKey,
     );
     assert.equal(result.key, "OLD1");
-    assert.equal(result.reply.text, "Commands: /key, /newkey, /setkey NEWKEY");
+    assert.equal(
+      result.reply.text,
+      "Commands: /key, /newkey, /setkey NEWKEY, /botstatus",
+    );
   }
 
   const showKey = applyTelegramUpdate(
@@ -262,6 +265,65 @@ test("all admin key commands support help, bot mentions, validation, and key rot
     invalidSetKey.reply.text,
     "Usage: /setkey NEWKEY  (4-32 letters or numbers)",
   );
+});
+
+test("only admins can check both Telegram bots without exposing secrets", () => {
+  const health = {
+    primary: {
+      configured: true,
+      polling: "polling",
+      lastSuccessfulPollAt: "2026-11-04T12:34:56.000Z",
+    },
+    secondary: {
+      configured: false,
+      polling: "disabled",
+      lastSuccessfulPollAt: null,
+    },
+  };
+  const currentState = { key: "SECRETKEY", updateOffset: 0 };
+  const unauthorized = applyTelegramUpdate(
+    {
+      update_id: 1,
+      message: {
+        text: "/botstatus",
+        from: { id: 3003 },
+        chat: { id: 3003, type: "private" },
+      },
+    },
+    currentState,
+    parseAdminIds("1001"),
+    () => "UNUSED",
+    health,
+  );
+
+  assert.equal(unauthorized.reply.text, "Not authorized.");
+  assert.doesNotMatch(unauthorized.reply.text, /SECRETKEY|PIN|token/i);
+
+  const authorized = applyTelegramUpdate(
+    {
+      update_id: 2,
+      message: {
+        text: "/botstatus@PrimaryBot",
+        from: { id: 1001 },
+        chat: { id: 1001, type: "private" },
+      },
+    },
+    currentState,
+    parseAdminIds("1001"),
+    () => "UNUSED",
+    health,
+  );
+
+  assert.equal(
+    authorized.reply.text,
+    [
+      "Telegram bot status",
+      "Primary: configured: yes; polling: polling; last successful poll: 2026-11-04T12:34:56.000Z",
+      "Secondary: configured: no; polling: disabled; last successful poll: never",
+    ].join("\n"),
+  );
+  assert.equal(authorized.key, "SECRETKEY");
+  assert.doesNotMatch(authorized.reply.text, /SECRETKEY|PIN|token/i);
 });
 
 test("admin key commands are rejected in groups without generating a key", () => {

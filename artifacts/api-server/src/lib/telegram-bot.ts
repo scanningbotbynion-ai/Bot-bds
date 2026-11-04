@@ -10,6 +10,8 @@ import { generateAccessKey } from "./access-key";
 import {
   applyTelegramUpdate,
   parseAdminIds,
+  type TelegramBotHealth,
+  type TelegramBotHealthEntry,
   type TelegramUpdate,
 } from "./telegram-update";
 import {
@@ -36,12 +38,32 @@ const SECONDARY_TOKEN_ENV = process.env.NODE_ENV === "production"
   ? "TELEGRAM_BOT_TOKEN_2"
   : "TELEGRAM_DEV_BOT_TOKEN_2";
 const ADMIN_IDS = parseAdminIds(process.env.ADMIN_IDS);
+const BOT_POLL_HEALTH: Record<TelegramBotId, TelegramBotHealthEntry> = {
+  primary: {
+    configured: Boolean(BOT_TOKENS.primary),
+    polling: BOT_TOKENS.primary && !hasDevelopmentConflict && ADMIN_IDS.size > 0
+      ? "not_started"
+      : "disabled",
+    lastSuccessfulPollAt: null,
+  },
+  secondary: {
+    configured: Boolean(BOT_TOKENS.secondary),
+    polling: BOT_TOKENS.secondary &&
+        BOT_TOKENS.secondary !== BOT_TOKENS.primary &&
+        !hasDevelopmentConflict &&
+        ADMIN_IDS.size > 0
+      ? "not_started"
+      : "disabled",
+    lastSuccessfulPollAt: null,
+  },
+};
 const BOT_COMMANDS = [
   { command: "start", description: "Show available commands" },
   { command: "help", description: "Show available commands" },
   { command: "key", description: "Show the current access key" },
   { command: "newkey", description: "Generate a new access key" },
   { command: "setkey", description: "Set key: /setkey NEWKEY" },
+  { command: "botstatus", description: "Check both bots' polling health" },
 ];
 
 type TelegramResponse<T> = {
@@ -58,6 +80,13 @@ type TelegramMessage = {
 type TelegramBotIdentity = {
   username?: string;
 };
+
+function getTelegramBotHealth(): TelegramBotHealth {
+  return {
+    primary: { ...BOT_POLL_HEALTH.primary },
+    secondary: { ...BOT_POLL_HEALTH.secondary },
+  };
+}
 
 async function telegram<T>(
   method: string,
@@ -480,6 +509,7 @@ async function processUpdate(
       { key: state.key, updateOffset: currentOffset },
       ADMIN_IDS,
       generateAccessKey,
+      getTelegramBotHealth(),
     );
     if (!updateResult.shouldCommit) {
       return;
@@ -533,11 +563,13 @@ async function pollTelegram(botId: TelegramBotId): Promise<void> {
         throw new Error("Access-key state is missing from the database.");
       }
 
+      BOT_POLL_HEALTH[botId].polling = "polling";
       const updates = await telegram<TelegramUpdate[]>("getUpdates", {
         offset: state.updateOffset,
         timeout: 25,
         allowed_updates: ["message", "callback_query"],
       }, botId);
+      BOT_POLL_HEALTH[botId].lastSuccessfulPollAt = new Date().toISOString();
 
       for (const update of updates) {
         await processUpdate(update, botId);
@@ -552,8 +584,10 @@ async function pollTelegram(botId: TelegramBotId): Promise<void> {
           { botId },
           "Telegram polling paused because this bot has an active webhook. Keep it in place or remove it before using polling.",
         );
+        BOT_POLL_HEALTH[botId].polling = "paused";
         return;
       }
+      BOT_POLL_HEALTH[botId].polling = "retrying";
       logger.error({ err: error, botId }, "Telegram polling failed; retrying");
       await delay(retryDelay);
       retryDelay = Math.min(retryDelay * 2, 30_000);

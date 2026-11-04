@@ -23,6 +23,17 @@ export type TelegramKeyState = {
   updateOffset: number;
 };
 
+export type TelegramBotHealth = {
+  primary: TelegramBotHealthEntry;
+  secondary: TelegramBotHealthEntry;
+};
+
+export type TelegramBotHealthEntry = {
+  configured: boolean;
+  polling: "not_started" | "polling" | "retrying" | "paused" | "disabled";
+  lastSuccessfulPollAt: string | null;
+};
+
 export type TelegramUpdateResult = TelegramKeyState & {
   reply?: { chatId: number; text: string };
   shouldCommit: boolean;
@@ -41,13 +52,35 @@ function commandReply(
   text: string | undefined,
   currentKey: string,
   generateKey: () => string,
+  botHealth?: TelegramBotHealth,
 ): { reply: string; newKey?: string } {
   const [rawCommand = "", ...parts] = (text ?? "").trim().split(/\s+/);
   const command = rawCommand.split("@")[0].toLowerCase();
   const argument = parts.join(" ").trim();
 
   if (command === "/start" || command === "/help") {
-    return { reply: "Commands: /key, /newkey, /setkey NEWKEY" };
+    return { reply: "Commands: /key, /newkey, /setkey NEWKEY, /botstatus" };
+  }
+  if (command === "/botstatus") {
+    const describeBot = (
+      name: string,
+      health: TelegramBotHealthEntry | undefined,
+    ) => {
+      if (!health) {
+        return `${name}: configured: unknown; polling: unknown; last successful poll: unknown`;
+      }
+      const lastSuccessfulPoll = health.lastSuccessfulPollAt
+        ? new Date(health.lastSuccessfulPollAt).toISOString()
+        : "never";
+      return `${name}: configured: ${health.configured ? "yes" : "no"}; polling: ${health.polling}; last successful poll: ${lastSuccessfulPoll}`;
+    };
+    return {
+      reply: [
+        "Telegram bot status",
+        describeBot("Primary", botHealth?.primary),
+        describeBot("Secondary", botHealth?.secondary),
+      ].join("\n"),
+    };
   }
   if (command === "/key") {
     return { reply: `Current key: ${currentKey}` };
@@ -66,7 +99,7 @@ function commandReply(
     return { reply: `Key changed to: ${newKey}`, newKey };
   }
 
-  return { reply: "Commands: /key, /newkey, /setkey NEWKEY" };
+  return { reply: "Commands: /key, /newkey, /setkey NEWKEY, /botstatus" };
 }
 
 export function applyTelegramUpdate(
@@ -74,6 +107,7 @@ export function applyTelegramUpdate(
   state: TelegramKeyState,
   adminIds: ReadonlySet<string>,
   generateKey: () => string,
+  botHealth?: TelegramBotHealth,
 ): TelegramUpdateResult {
   if (update.update_id < state.updateOffset) {
     return { ...state, shouldCommit: false };
@@ -98,7 +132,12 @@ export function applyTelegramUpdate(
         };
       }
     } else {
-      const parsedCommand = commandReply(message?.text, state.key, generateKey);
+      const parsedCommand = commandReply(
+        message?.text,
+        state.key,
+        generateKey,
+        botHealth,
+      );
       key = parsedCommand.newKey ?? state.key;
       if (chatId !== undefined) {
         reply = { chatId, text: parsedCommand.reply };
