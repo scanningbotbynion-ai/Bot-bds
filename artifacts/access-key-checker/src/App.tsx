@@ -221,7 +221,7 @@ function Terms() {
           </div>
           <div className="terms-notice terms-data-notice" role="note" data-testid="notice-payment-data">
             <span className="terms-notice-icon"><ShieldCheck size={20} /></span>
-            <p>此表单中的 PASWD 指付款 ID，而非账户密码。您提交的邮箱和付款 ID 会通过 Telegram 发送给经授权的机器人管理员，用于付款审核。只有在您勾选付款审核表单中的同意框后，本应用签发的六位访问 PIN 才会发送给管理员审核。请勿提交密码、银行卡或银行账户信息，或来自电子邮件、短信或其他服务的验证码。审核完成或请求过期后，本应用会清除提交的付款信息；Telegram 消息会尽可能清除，但 Telegram 可能根据其政策保留副本。</p>
+          <p>此表单仅收集邮箱和付款编号用于付款审核，不会要求您提供账户密码。您提交的邮箱和付款编号会通过 Telegram 发送给经授权的机器人管理员，用于付款审核。只有在您勾选付款审核表单中的同意框后，本应用签发的六位访问 PIN 才会发送给管理员审核。请勿提交密码、银行卡或银行账户信息，或来自电子邮件、短信或其他服务的验证码。审核完成或请求过期后，本应用会清除提交的付款信息；Telegram 消息会尽可能清除，但 Telegram 可能根据其政策保留副本。</p>
           </div>
         </section>
 
@@ -343,7 +343,7 @@ function Login() {
           />
         </label>
         <label className="floating-field">
-            <span>PSWD ID</span>
+          <span>付款编号</span>
           <input
             type="text"
             autoComplete="off"
@@ -351,7 +351,8 @@ function Login() {
             maxLength={128}
             value={paymentId}
             onChange={(event) => setPaymentId(event.target.value)}
-            aria-label="PSWD ID"
+            placeholder="请输入付款编号"
+            aria-label="付款编号"
             data-testid="input-payment-id"
           />
         </label>

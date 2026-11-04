@@ -16,6 +16,7 @@ A Replit-hosted API that verifies access keys and lets approved Telegram admins 
 - `/terms` — general Terms & Risk Disclosure summary; not a jurisdiction-specific legal contract
 - `/test-key` is a separate temporary page for testing the live key-verification API
 - Only access-key verification is real; sign-in and PIN screens are visual prototype steps
+- This bot is for customers who purchase the online trading course; admins verify payment references, and the form must not request account passwords.
 - Telegram admin commands: `/key`, `/newkey`, `/setkey NEWKEY`
 - Required shared environment variable: `ADMIN_IDS` — comma-separated numeric Telegram user IDs
 - Optional shared environment variable: `ALLOWED_ORIGIN` — allow browser requests from one trusted origin; unset means no cross-origin access
