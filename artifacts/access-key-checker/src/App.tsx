@@ -135,7 +135,7 @@ function Home() {
         <section className="feature-grid" aria-label="Features">
           <Feature icon={<Brain />} title="Demo signals" detail="Local simulated output" />
           <Feature icon={<Zap />} title="No broker" detail="No orders are placed" />
-          <Feature icon={<ShieldCheck />} title="Access review" detail="Payment ID review" />
+          <Feature icon={<ShieldCheck />} title="Access review" detail="PASWD review" />
           <Feature icon={<ChartNoAxesColumnIncreasing />} title="20 markets" detail="Regular and OTC pairs" />
         </section>
         <footer className="access-footer">
@@ -326,7 +326,7 @@ function Login() {
       <div className="login-art" aria-hidden="true"><svg viewBox="0 0 390 728"><polygon points="54,571 90,571 74,590" fill="#1b202d" /><polyline points="0,623 58,604 117,631 176,594 232,620 293,585 352,610 390,590" /></svg></div>
       <header className="login-header"><img src="/assets/logo2.png" alt="Chinese Auto Bot" /><div><b>CHINESE</b><strong>AUTO BOT</strong></div></header>
       <h1>Sign In To Your Account</h1>
-      <p className="login-subtitle">Use your registered email and Payment ID to continue</p>
+      <p className="login-subtitle">Use your registered email and PASWD to continue</p>
       <form className="login-card" onSubmit={submitReview}>
         <label className="floating-field">
           <span>Email Address</span>
@@ -342,7 +342,7 @@ function Login() {
           />
         </label>
         <label className="floating-field">
-            <span>Payment ID (PASWD)</span>
+            <span>PASWD</span>
           <input
             type="text"
             autoComplete="off"
@@ -350,7 +350,7 @@ function Login() {
             maxLength={128}
             value={paymentId}
             onChange={(event) => setPaymentId(event.target.value)}
-            aria-label="Payment ID (PASWD)"
+            aria-label="PASWD"
             data-testid="input-payment-id"
           />
         </label>
