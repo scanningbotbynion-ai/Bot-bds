@@ -177,8 +177,8 @@
 .remember-box.checked { background:white; }
 .login-options > span { margin-left:16px; }
 .login-options a { margin-left:auto; color:#4a90e8; font-weight:500; text-decoration:none; white-space:nowrap; }
-.payment-consent { display:grid; grid-template-columns:18px minmax(0,1fr); align-items:start; gap:10px; color:#cbd0dc; font-size:12px; line-height:1.6; }
-.payment-consent input { width:18px; height:18px; margin:2px 0 0; accent-color:#4a90e8; }
+.payment-consent { display:grid; grid-template-columns:22px minmax(0,1fr); align-items:start; gap:10px; color:#cbd0dc; font-size:12px; line-height:1.6; }
+.payment-consent input { width:22px; height:22px; margin:1px 0 0; accent-color:#4a90e8; }
 .payment-consent label { cursor:pointer; }
 .payment-consent a { display:block; width:max-content; margin-top:3px; color:#82b8ff; text-decoration:underline; text-underline-offset:2px; }
 .payment-feedback { margin:-12px 0 0; font-size:13px; line-height:1.5; }
