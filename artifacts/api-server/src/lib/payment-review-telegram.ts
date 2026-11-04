@@ -8,6 +8,25 @@ type TelegramMethod = (
   botId?: ReviewBotId,
 ) => Promise<unknown>;
 
+export type ReviewCallbackTaskResult =
+  | { ok: true }
+  | { ok: false; error: unknown };
+
+export function startReviewCallbackTasks(
+  updates: readonly TelegramUpdate[],
+  processCallback: (
+    callback: NonNullable<TelegramUpdate["callback_query"]>,
+  ) => Promise<void>,
+): Array<Promise<ReviewCallbackTaskResult> | undefined> {
+  return updates.map((update) => {
+    if (!update.callback_query) return undefined;
+    return processCallback(update.callback_query).then(
+      () => ({ ok: true }) as const,
+      (error) => ({ ok: false, error }) as const,
+    );
+  });
+}
+
 export async function sendPaymentReviewMessages(options: {
   requestId: string;
   email: string;
@@ -117,6 +136,7 @@ export async function processReviewCallback<TRequest extends ReviewRequest>(
     onExpiredCallback?: (error: unknown) => void;
     onCallbackAckFailure?: (error: unknown) => void;
     onStaleMessageCleanupFailure?: (error: unknown) => void;
+    onMessageRedactionFailure?: (error: unknown) => void;
     now?: () => Date;
   },
 ): Promise<void> {
@@ -161,16 +181,14 @@ export async function processReviewCallback<TRequest extends ReviewRequest>(
   if (!request || request.reviewType !== reviewType) {
     const message = callback.message;
     if (message?.chat?.id !== undefined && message.message_id !== undefined) {
-      try {
-        await dependencies.telegram("editMessageText", {
+      void dependencies.telegram("editMessageText", {
           chat_id: message.chat.id,
           message_id: message.message_id,
           text: "Review request unavailable. Submitted details removed.",
           reply_markup: { inline_keyboard: [] },
-        }, botId);
-      } catch (error) {
-        dependencies.onStaleMessageCleanupFailure?.(error);
-      }
+        }, botId).catch((error) => {
+          dependencies.onStaleMessageCleanupFailure?.(error);
+        });
     }
     return;
   }
@@ -209,22 +227,26 @@ export async function processReviewCallback<TRequest extends ReviewRequest>(
       ? latestRequest.status
       : undefined;
     if (latestRequest && completedOutcome) {
-      await dependencies.redactMessages(
+      void dependencies.redactMessages(
         requestId,
         completedOutcome,
         [...latestRequest.telegramMessages, ...clickedMessage],
         reviewType,
-      );
+      ).catch((error) => {
+        dependencies.onMessageRedactionFailure?.(error);
+      });
       return;
     }
 
     return;
   }
 
-  await dependencies.redactMessages(
+  void dependencies.redactMessages(
     requestId,
     outcome,
     [...request.telegramMessages, ...clickedMessage],
     reviewType,
-  );
+  ).catch((error) => {
+    dependencies.onMessageRedactionFailure?.(error);
+  });
 }

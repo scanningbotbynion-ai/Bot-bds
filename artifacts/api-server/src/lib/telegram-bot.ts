@@ -18,6 +18,8 @@ import {
   processReviewCallback as processReviewCallbackWithDependencies,
   redactReviewMessages as redactTelegramReviewMessages,
   sendPaymentReviewMessages,
+  startReviewCallbackTasks,
+  type ReviewCallbackTaskResult,
 } from "./payment-review-telegram";
 import { getTelegramBotTokens } from "./telegram-config";
 
@@ -423,6 +425,10 @@ async function processReviewCallback(
       { err: error, botId },
       "Could not clear a stale review message",
     ),
+    onMessageRedactionFailure: (error) => logger.warn(
+      { err: error, botId },
+      "Review decision saved, but message cleanup failed",
+    ),
     getRequest: async (requestId) => {
       const [request] = await db
         .select()
@@ -480,9 +486,15 @@ function delay(ms: number): Promise<void> {
 async function processUpdate(
   update: TelegramUpdate,
   botId: TelegramBotId = "primary",
+  callbackTask?: Promise<ReviewCallbackTaskResult>,
 ): Promise<void> {
   if (update.callback_query) {
-    await processReviewCallback(update.callback_query, botId);
+    if (callbackTask) {
+      const result = await callbackTask;
+      if (!result.ok) throw result.error;
+    } else {
+      await processReviewCallback(update.callback_query, botId);
+    }
   }
 
   let reply: { chatId: number; text: string } | undefined;
@@ -571,8 +583,12 @@ async function pollTelegram(botId: TelegramBotId): Promise<void> {
       }, botId);
       BOT_POLL_HEALTH[botId].lastSuccessfulPollAt = new Date().toISOString();
 
-      for (const update of updates) {
-        await processUpdate(update, botId);
+      const callbackTasks = startReviewCallbackTasks(
+        updates,
+        (callback) => processReviewCallback(callback, botId),
+      );
+      for (let index = 0; index < updates.length; index += 1) {
+        await processUpdate(updates[index], botId, callbackTasks[index]);
       }
       retryDelay = 1_000;
     } catch (error) {

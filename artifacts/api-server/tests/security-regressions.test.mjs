@@ -9,7 +9,32 @@ import {
   processReviewCallback,
   redactReviewMessages,
   sendPaymentReviewMessages,
+  startReviewCallbackTasks,
 } from "../src/lib/payment-review-telegram.ts";
+
+test("Telegram review callbacks start before queued message updates", async () => {
+  const started = [];
+  let releaseCallbacks;
+  const callbackGate = new Promise((resolve) => {
+    releaseCallbacks = resolve;
+  });
+  const tasks = startReviewCallbackTasks([
+    { update_id: 1, message: { message_id: 1 } },
+    { update_id: 2, callback_query: { id: "pin-click-1" } },
+    { update_id: 3, callback_query: { id: "pin-click-2" } },
+  ], async (callback) => {
+    started.push(callback.id);
+    await callbackGate;
+  });
+
+  assert.deepEqual(started, ["pin-click-1", "pin-click-2"]);
+  assert.equal(tasks[0], undefined);
+  releaseCallbacks();
+  assert.deepEqual(await Promise.all(tasks.filter(Boolean)), [
+    { ok: true },
+    { ok: true },
+  ]);
+});
 
 function makeVerificationHarness({
   getAccessKeyState = async () => ({ key: "ABCD" }),
