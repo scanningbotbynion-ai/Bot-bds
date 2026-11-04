@@ -147,7 +147,7 @@ export default function SignalGenerator() {
               </button>
               {isGenerating && <p className="signal-loading-note" data-testid="status-signal-loading" role="status" aria-live="polite">Preparing simulated next-candle direction…</p>}
               {error && <p className="signal-generator-error" data-testid="status-generator-error" role="alert">{error}</p>}
-              <p className="signal-generator-note" data-testid="notice-demo-status"><i /> DEMO FEED · Local simulation, no live market connection</p>
+              <p className="signal-generator-note" data-testid="notice-demo-status"><i /> SIMULATED</p>
             </section>
           </div>
 

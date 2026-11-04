@@ -51,7 +51,7 @@ export default function SignalResult() {
                 <strong className="sr-direction-value" data-testid="text-signal-direction">{signal.direction}</strong>
                 <span className="sr-direction-caption">DIRECTION</span>
                 <p className="sr-notice" data-testid="notice-result-demo">
-                  <ShieldAlert size={14} /> Simulated direction only · No live market feed or broker connection.
+                  <ShieldAlert size={14} /> SIMULATED
                 </p>
               </div>
               <div className="sr-card-foot">
@@ -68,7 +68,7 @@ export default function SignalResult() {
               <h1>No active signal</h1>
               <p>There is no active simulated direction. Return to the generator to create one.</p>
               <button className="sr-return" type="button" data-testid="button-return-generator" onClick={returnToGenerator}><ArrowLeft size={15} /> Return to generator</button>
-              <p className="sr-notice" data-testid="notice-result-demo" style={{ justifyContent: "center" }}><ShieldAlert size={14} /> Simulated direction only · No live market feed or broker connection.</p>
+              <p className="sr-notice" data-testid="notice-result-demo" style={{ justifyContent: "center" }}><ShieldAlert size={14} /> SIMULATED</p>
             </div>
           )}
         </section>
