@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { Activity, ArrowUpRight, BarChart3, ChevronDown, Zap } from "lucide-react";
+import { Activity, ArrowUpRight, BarChart3, ChevronDown, LoaderCircle, Zap } from "lucide-react";
 import "./signal-generator.css";
 import {
   brokerOptions,
@@ -16,31 +16,63 @@ import {
   type Timeframe,
 } from "./signal-flow";
 
+const SIGNAL_LOADING_MS = 8_000;
+
 export default function SignalGenerator() {
   const [, setLocation] = useLocation();
   const [savedSettings] = useState(() => readSignalSettings());
   const [broker, setBroker] = useState<Broker>(savedSettings?.broker ?? "Quotex");
   const [market, setMarket] = useState<Market>(savedSettings?.market ?? "USD/PKR (OTC)");
   const [timeframe, setTimeframe] = useState<Timeframe>(savedSettings?.timeframe ?? "15s");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [secondsRemaining, setSecondsRemaining] = useState(8);
   const [error, setError] = useState("");
+  const generationTimeout = useRef<number | null>(null);
+  const loadingInterval = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (generationTimeout.current !== null) window.clearTimeout(generationTimeout.current);
+    if (loadingInterval.current !== null) window.clearInterval(loadingInterval.current);
+  }, []);
 
   function generateSignal() {
-    const direction: SignalDirection = Math.random() < 0.5 ? "UP" : "DOWN";
-    const generatedAt = Date.now();
+    if (isGenerating) return;
+
     const settings = { broker, market, timeframe };
-    try {
-      saveSignalSettings(settings);
-      saveActiveSignal({
-        ...settings,
-        direction,
-        generatedAt,
-        expiresAt: generatedAt + timeframeDurationSeconds(timeframe) * 1000,
-      });
-      setError("");
-      setLocation("/signal-result");
-    } catch {
-      setError("Could not start the signal timer. Please try again.");
-    }
+    const startedAt = Date.now();
+    setError("");
+    setSecondsRemaining(8);
+    setIsGenerating(true);
+
+    loadingInterval.current = window.setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      setSecondsRemaining(Math.max(0, Math.ceil((SIGNAL_LOADING_MS - elapsed) / 1000)));
+    }, 250);
+
+    generationTimeout.current = window.setTimeout(() => {
+      if (loadingInterval.current !== null) {
+        window.clearInterval(loadingInterval.current);
+        loadingInterval.current = null;
+      }
+
+      const generatedAt = Date.now();
+      const direction: SignalDirection = Math.random() < 0.5 ? "UP" : "DOWN";
+      try {
+        saveSignalSettings(settings);
+        saveActiveSignal({
+          ...settings,
+          direction,
+          generatedAt,
+          expiresAt: generatedAt + timeframeDurationSeconds(settings.timeframe) * 1000,
+        });
+        setLocation("/signal-result");
+      } catch {
+        setError("Could not save the simulated signal. Please try again.");
+      } finally {
+        generationTimeout.current = null;
+        setIsGenerating(false);
+      }
+    }, SIGNAL_LOADING_MS);
   }
 
   return (
@@ -70,7 +102,7 @@ export default function SignalGenerator() {
                 <label className="signal-label" htmlFor="signal-broker">Select Broker</label>
                 <div className="signal-select-wrap signal-select-blue">
                   <Activity size={17} aria-hidden="true" />
-                  <select id="signal-broker" data-testid="select-broker" value={broker} onChange={(event) => setBroker(event.target.value as Broker)}>
+                  <select id="signal-broker" data-testid="select-broker" value={broker} disabled={isGenerating} onChange={(event) => setBroker(event.target.value as Broker)}>
                     {brokerOptions.map((item) => <option key={item} value={item}>{item}</option>)}
                   </select>
                   <ChevronDown size={19} aria-hidden="true" />
@@ -81,7 +113,7 @@ export default function SignalGenerator() {
                 <label className="signal-label" htmlFor="signal-market">Trading Asset</label>
                 <div className="signal-select-wrap signal-select-blue">
                   <BarChart3 size={16} aria-hidden="true" />
-                    <select id="signal-market" data-testid="select-market" value={market} onChange={(event) => setMarket(event.target.value as Market)}>
+                    <select id="signal-market" data-testid="select-market" value={market} disabled={isGenerating} onChange={(event) => setMarket(event.target.value as Market)}>
                     {marketOptions.map((item) => <option key={item} value={item}>{item}</option>)}
                   </select>
                   <ChevronDown size={16} aria-hidden="true" />
@@ -98,6 +130,7 @@ export default function SignalGenerator() {
                       type="button"
                       className={`signal-time-option ${timeframe === item ? "selected" : ""}`}
                       aria-pressed={timeframe === item}
+                      disabled={isGenerating}
                       data-testid={`button-timeframe-${item}`}
                       onClick={() => setTimeframe(item)}
                     >
@@ -107,11 +140,12 @@ export default function SignalGenerator() {
                 </div>
               </fieldset>
 
-              <button className="signal-generate" type="button" data-testid="button-generate-signal" onClick={generateSignal}>
-                <Zap size={17} fill="currentColor" />
-                Generate signal
-                <span><ArrowUpRight size={17} /></span>
+              <button className="signal-generate" type="button" data-testid="button-generate-signal" onClick={generateSignal} disabled={isGenerating} aria-busy={isGenerating}>
+                {isGenerating
+                  ? <><LoaderCircle className="signal-loading-icon" size={18} /> Loading · {secondsRemaining}s</>
+                  : <><Zap size={17} fill="currentColor" /> Generate signal <span><ArrowUpRight size={17} /></span></>}
               </button>
+              {isGenerating && <p className="signal-loading-note" data-testid="status-signal-loading" role="status" aria-live="polite">Preparing simulated next-candle direction…</p>}
               {error && <p className="signal-generator-error" data-testid="status-generator-error" role="alert">{error}</p>}
               <p className="signal-generator-note" data-testid="notice-demo-status"><i /> DEMO FEED · Local simulation, no live market connection</p>
             </section>

@@ -108,3 +108,18 @@
   .sr-generated { font-size: 6px; }
 }
 @media (prefers-reduced-motion: reduce) { .sr-page *, .sr-page *::before, .sr-page *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+
+/* Focus the result page on the next-candle direction alone. */
+.sr-layout { display: flex; align-items: center; justify-content: center; }
+.sr-card { width: min(100%, 470px); margin: 0 auto; }
+.sr-direction-only { display: flex; flex-direction: column; align-items: center; padding: 30px 10px 18px; text-align: center; }
+.sr-next-label { color: #c9d9ce; font: 700 13px "Space Mono",monospace; letter-spacing: 2px; }
+.sr-direction-mark { width: 84px; height: 84px; display: grid; place-items: center; margin-top: 22px; border: 1px solid color-mix(in srgb,var(--sr-accent) 55%,white); border-radius: 50%; color: #fff; background: var(--sr-accent); box-shadow: 0 0 18px color-mix(in srgb,var(--sr-accent) 70%,transparent), inset 0 1px rgba(255,255,255,.5); }
+.sr-direction-value { margin-top: 14px; color: var(--sr-accent); font: 900 clamp(70px,20vw,104px)/.95 "Space Mono",monospace; letter-spacing: -5px; text-shadow: 0 0 20px color-mix(in srgb,var(--sr-accent) 58%,transparent); }
+.sr-direction-caption { margin-top: 8px; color: #d5e2d8; font: 600 10px "Space Mono",monospace; letter-spacing: 2.5px; }
+.sr-direction-only .sr-notice { max-width: 370px; margin: 25px 0 0; }
+.sr-card-foot { justify-content: center; margin-top: 0; }
+@media (min-width: 700px) {
+  .sr-layout { display: flex; }
+  .sr-direction-only { padding: 42px 18px 24px; }
+}
