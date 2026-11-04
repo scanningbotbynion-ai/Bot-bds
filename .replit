@@ -22,4 +22,3 @@ timeoutMs = 20000
 [userenv]
 
 [userenv.shared]
-ADMIN_IDS = "7980573768,8913389274"
