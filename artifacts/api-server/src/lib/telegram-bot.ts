@@ -129,7 +129,6 @@ export async function notifyPaymentReview(
   const botIds = BOT_TOKENS.secondary
     ? ["primary", "secondary"] as const
     : ["primary"] as const;
-
   const messages = await sendPaymentReviewMessages({
     requestId,
     email,
@@ -563,12 +562,14 @@ export function startTelegramBot(): void {
   logBotIdentity("primary");
   void pollTelegram("primary");
 
-  if (BOT_TOKENS.secondary && BOT_TOKENS.secondary !== BOT_TOKENS.primary) {
-    logBotIdentity("secondary");
-    void pollTelegram("secondary");
-  } else if (BOT_TOKENS.secondary) {
-    logger.error(
-      `Telegram secondary bot is disabled: ${SECONDARY_TOKEN_ENV} must differ from ${PRIMARY_TOKEN_ENV}.`,
-    );
+  if (BOT_TOKENS.secondary) {
+    if (BOT_TOKENS.secondary !== BOT_TOKENS.primary) {
+      logBotIdentity("secondary");
+      void pollTelegram("secondary");
+    } else {
+      logger.error(
+        `Telegram secondary bot is disabled: ${SECONDARY_TOKEN_ENV} must differ from ${PRIMARY_TOKEN_ENV}.`,
+      );
+    }
   }
 }
