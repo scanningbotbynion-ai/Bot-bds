@@ -12,3 +12,14 @@ export function reviewSubmissionError(error: unknown): string {
   }
   return 'Could not submit your review. Check your connection and try again.';
 }
+
+export function resolvedReviewStatus(
+  data: { status: "pending" | "approved" | "rejected" | "expired" } | undefined,
+  error: unknown,
+): "pending" | "approved" | "rejected" | "expired" | undefined {
+  const apiError = error as { status?: number; response?: { status?: number } } | null;
+  // A preview request from before switching to the shared service cannot be
+  // decided by the production bot. Release that request so it can be resubmitted.
+  if ((apiError?.status ?? apiError?.response?.status) === 404) return "expired";
+  return data?.status;
+}

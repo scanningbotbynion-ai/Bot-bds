@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { createSharedReviewProxy } from "./lib/shared-review-proxy";
 
 const app: Express = express();
 const allowedOrigin = process.env.ALLOWED_ORIGIN?.trim();
@@ -38,6 +39,10 @@ app.use(
 app.use(express.json({ limit: "4kb" }));
 app.use(express.urlencoded({ extended: true, limit: "4kb" }));
 
+app.use("/api", createSharedReviewProxy({
+  nodeEnv: process.env.NODE_ENV,
+  apiUrl: process.env.TELEGRAM_SHARED_API_URL,
+}));
 app.use("/api", router);
 
 export default app;

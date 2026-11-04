@@ -27,7 +27,10 @@ export function getTelegramBotTokens(
 
   // Saved credentials alone must not reconnect the removed preview bot.
   // Reconnecting any development bot requires an explicit owner opt-in.
-  if (env.TELEGRAM_DEV_BOT_ENABLED !== "true") {
+  if (
+    env.TELEGRAM_SHARED_API_URL?.trim() ||
+    env.TELEGRAM_DEV_BOT_ENABLED !== "true"
+  ) {
     return {
       primary: undefined,
       legacyCleanup: undefined,

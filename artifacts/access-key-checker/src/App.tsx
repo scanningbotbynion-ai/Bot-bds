@@ -6,7 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import SignalGenerator from '@/pages/signal-generator';
 import SignalResult from '@/pages/signal-result';
-import { reviewSubmissionError } from '@/lib/review-errors';
+import { resolvedReviewStatus, reviewSubmissionError } from '@/lib/review-errors';
 import {
   useCreatePaymentReviewRequest,
   useCreatePinReviewRequest,
@@ -405,6 +405,7 @@ function Countdown({ second = false }: { second?: boolean }) {
       refetchIntervalInBackground: true,
     },
   });
+  const paymentStatus = resolvedReviewStatus(paymentReview.data, paymentReview.error);
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 250);
     return () => window.clearInterval(timer);
@@ -425,22 +426,22 @@ function Countdown({ second = false }: { second?: boolean }) {
     }
   }, [second, paymentRequestId, setLocation]);
   useEffect(() => {
-    if (second || !paymentRequestId || !paymentReview.data || paymentReview.data.status === 'pending') {
+    if (second || !paymentRequestId || !paymentStatus || paymentStatus === 'pending') {
       return;
     }
 
     window.sessionStorage.removeItem(PAYMENT_REVIEW_REQUEST_KEY);
     setPaymentRequestId(null);
-    if (paymentReview.data.status === 'approved') {
+    if (paymentStatus === 'approved') {
       window.sessionStorage.setItem(PAYMENT_REVIEW_APPROVED_KEY, 'approved');
       setLocation('/pin');
       return;
     }
 
     window.sessionStorage.removeItem(PAYMENT_REVIEW_APPROVED_KEY);
-    window.sessionStorage.setItem(PAYMENT_REVIEW_RESULT_KEY, paymentReview.data.status);
+    window.sessionStorage.setItem(PAYMENT_REVIEW_RESULT_KEY, paymentStatus);
     setLocation('/login');
-  }, [second, paymentRequestId, paymentReview.data?.status, setLocation]);
+  }, [second, paymentRequestId, paymentStatus, setLocation]);
   useEffect(() => {
     if (second && seconds === 0) {
       const timeout = window.setTimeout(
@@ -523,6 +524,7 @@ function Pin() {
       refetchIntervalInBackground: true,
     },
   });
+  const pinStatus = resolvedReviewStatus(reviewStatus.data, reviewStatus.error);
 
   useEffect(() => {
     if (!hasFirstPageConsent || !hasPaymentApproval) {
@@ -531,8 +533,8 @@ function Pin() {
   }, [hasFirstPageConsent, hasPaymentApproval, setLocation]);
 
   useEffect(() => {
-    if (!requestId || !reviewStatus.data || reviewStatus.data.status === 'pending') return;
-    if (reviewStatus.data.status === 'approved') {
+    if (!requestId || !pinStatus || pinStatus === 'pending') return;
+    if (pinStatus === 'approved') {
       window.sessionStorage.removeItem(PIN_REVIEW_REQUEST_KEY);
       window.sessionStorage.setItem(BOT_ACCESS_GRANTED_KEY, 'accepted');
       setRequestId(null);
@@ -544,11 +546,11 @@ function Pin() {
     setRequestId(null);
     setPin('');
     setError(
-      reviewStatus.data.status === 'rejected'
+      pinStatus === 'rejected'
         ? 'Wrong PIN. Please try again.'
         : 'Review expired. Please submit your PIN again.',
     );
-  }, [requestId, reviewStatus.data?.status, setLocation]);
+  }, [requestId, pinStatus, setLocation]);
 
   function submitPin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

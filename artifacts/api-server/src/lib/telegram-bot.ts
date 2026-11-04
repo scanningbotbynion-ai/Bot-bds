@@ -593,6 +593,13 @@ async function pollTelegram(): Promise<void> {
 export function startTelegramBot(): void {
   if (
     process.env.NODE_ENV !== "production" &&
+    process.env.TELEGRAM_SHARED_API_URL?.trim()
+  ) {
+    logger.info("Preview uses the shared production review API; local Telegram polling is disabled.");
+    return;
+  }
+  if (
+    process.env.NODE_ENV !== "production" &&
     process.env.TELEGRAM_DEV_BOT_ENABLED !== "true"
   ) {
     logger.info("Preview Telegram is disconnected by project configuration.");

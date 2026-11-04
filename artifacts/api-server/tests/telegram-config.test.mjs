@@ -72,3 +72,17 @@ test("removed preview bot stays disconnected even with saved primary and cleanup
     });
   }
 });
+
+test("shared production reviews always disable local preview bot tokens and polling", () => {
+  const env = {
+    TELEGRAM_SHARED_API_URL: "https://production.example/api",
+    TELEGRAM_DEV_BOT_ENABLED: "true",
+    TELEGRAM_BOT_TOKEN: "prod-primary",
+    TELEGRAM_DEV_BOT_TOKEN: "removed-dev-bot",
+    TELEGRAM_DEV_BOT_TOKEN_2: "legacy-dev-bot",
+  };
+  assert.deepEqual(getTelegramBotTokens("development", env), {
+    primary: undefined, legacyCleanup: undefined, hasDevelopmentConflict: false,
+  });
+  assert.equal(getTelegramBotTokens("production", env).primary, "prod-primary");
+});

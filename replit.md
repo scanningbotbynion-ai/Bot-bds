@@ -20,7 +20,8 @@ A Replit-hosted API that verifies access keys and lets approved Telegram admins 
 - Optional shared environment variable: `ALLOWED_ORIGIN` — allow browser requests from one trusted origin; unset means no cross-origin access
 - Required Replit Secret: `TELEGRAM_BOT_TOKEN` — Telegram Bot API token, never store it in source
 - Production uses `TELEGRAM_BOT_TOKEN`; optional `TELEGRAM_BOT_TOKEN_2` is for legacy-message cleanup only.
-- The owner disconnected the Preview Telegram bot. Keep `TELEGRAM_DEV_BOT_ENABLED=false`; Preview must not poll, send notifications, or use saved development tokens, including cleanup tokens.
+- Preview and live must use the same production Telegram bot and review database. Set the development-only `TELEGRAM_SHARED_API_URL` to the verified published API base ending in `/api`. Preview forwards payment/PIN submissions, their status checks, and access-key verification server-side to that API; production always processes them locally.
+- The owner disconnected the separate Preview Telegram bot. Keep `TELEGRAM_DEV_BOT_ENABLED=false`; Preview must not poll or use saved development tokens, including cleanup tokens. Do not enable a second poller for the production token.
 - Do not reconnect a Preview bot unless the owner explicitly requests it. Reconnection requires `TELEGRAM_DEV_BOT_ENABLED=true` and separate development tokens that never match production tokens.
 - `DATABASE_URL` is provided by Replit and must not be set manually
 
