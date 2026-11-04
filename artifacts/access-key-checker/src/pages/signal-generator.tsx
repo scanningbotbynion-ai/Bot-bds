@@ -90,7 +90,7 @@ export default function SignalGenerator() {
             <div className="signal-heading">
               <div className="signal-overline"><span /> SIGNAL LAB <span className="signal-overline-rule" /></div>
               <h1>Chinese Signal<br /><em>Generator</em></h1>
-              <p>Generate a demo trading signal</p>
+              <p>Generate a trading signal</p>
             </div>
 
             <section className="signal-panel">
