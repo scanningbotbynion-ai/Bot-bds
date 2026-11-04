@@ -1,2 +1,3 @@
 - [Payment review data](payment-review-data.md) — forward app-issued PINs only after clear consent; never collect third-party credentials or codes.
 - [Signal data status](signal-data-status.md) — the signal generator has no live market feed or broker connection; keep demo status explicit.
+- [Telegram polling deployment](telegram-polling-deployment.md) — use a Reserved VM for the Telegram long-polling API; autoscale can interrupt or duplicate pollers.
