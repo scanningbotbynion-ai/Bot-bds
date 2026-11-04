@@ -407,16 +407,23 @@ for (const { botId, action, outcome, otherBotId, otherAction } of [
       ],
     };
     const telegramCalls = [];
+    const eventOrder = [];
     let updates = 0;
     const telegram = async (method, params, routedBotId) => {
       telegramCalls.push({ method, params, botId: routedBotId });
+      if (method === "answerCallbackQuery") eventOrder.push("ack");
+      if (method === "editMessageText") eventOrder.push("edit");
     };
     const dependencies = {
       adminIds: new Set(["1001"]),
       telegram,
-      getRequest: async () => request,
+      getRequest: async () => {
+        eventOrder.push("get");
+        return request;
+      },
       expireRequest: async () => false,
       decideRequest: async (_id, decision) => {
+        eventOrder.push("decide");
         updates += 1;
         if (request.status !== "pending") return false;
         request.status = decision;
@@ -458,6 +465,8 @@ for (const { botId, action, outcome, otherBotId, otherAction } of [
     assert.equal(request.email, null);
     assert.equal(request.paymentId, null);
     assert.equal(updates, 1);
+    assert.ok(eventOrder.indexOf("ack") < eventOrder.indexOf("get"));
+    assert.ok(eventOrder.indexOf("ack") < eventOrder.indexOf("decide"));
     const winnerEdits = telegramCalls.slice(0, winnerCallCount).filter(({ method }) =>
       method === "editMessageText"
     );
@@ -491,13 +500,13 @@ for (const { botId, action, outcome, otherBotId, otherAction } of [
       method === "answerCallbackQuery" &&
       params.callback_query_id === "winner" &&
       routedBotId === botId &&
-      params.text === (outcome === "approved" ? "Marked Right." : "Marked Wrong.")
+      params.text === "Review received."
     ));
     assert.ok(telegramCalls.some(({ method, params, botId: routedBotId }) =>
       method === "answerCallbackQuery" &&
       params.callback_query_id === "later" &&
       routedBotId === otherBotId &&
-      params.text === "This request was already reviewed."
+      params.text === "Review received."
     ));
   });
 }
@@ -520,15 +529,22 @@ for (const { action, outcome } of [
       ],
     };
     const telegramCalls = [];
+    const eventOrder = [];
     const telegram = async (method, params, botId) => {
       telegramCalls.push({ method, params, botId });
+      if (method === "answerCallbackQuery") eventOrder.push("ack");
+      if (method === "editMessageText") eventOrder.push("edit");
     };
     const dependencies = {
       adminIds: new Set(["1001"]),
       telegram,
-      getRequest: async () => request,
+      getRequest: async () => {
+        eventOrder.push("get");
+        return request;
+      },
       expireRequest: async () => false,
       decideRequest: async (_id, decision) => {
+        eventOrder.push("decide");
         if (request.status !== "pending") return false;
         request.status = decision;
         request.pin = null;
@@ -548,6 +564,8 @@ for (const { action, outcome } of [
 
     assert.equal(request.status, outcome);
     assert.equal(request.pin, null);
+    assert.ok(eventOrder.indexOf("ack") < eventOrder.indexOf("get"));
+    assert.ok(eventOrder.indexOf("ack") < eventOrder.indexOf("decide"));
     const ackIndex = telegramCalls.findIndex(({ method, params }) =>
       method === "answerCallbackQuery" &&
       params.callback_query_id === "pin-winner"
@@ -610,6 +628,50 @@ test("an expired Telegram PIN callback acknowledgment does not block the review 
   assert.equal(decision, "approved");
   assert.equal(cleanupRan, true);
   assert.equal(expiredCallbackLogged, true);
+});
+
+test("a failed Telegram callback acknowledgment does not delay the review decision", async () => {
+  const requestId = "fedcbafe-1234-4234-8234-fedcbafedcba";
+  const request = {
+    id: requestId,
+    reviewType: "pin",
+    status: "pending",
+    expiresAt: new Date("2030-01-01T00:00:00Z"),
+    pin: "123456",
+    telegramMessages: [{ chatId: 1001, messageId: 71, botId: "primary" }],
+  };
+  let decision = null;
+  let ackFailureLogged = false;
+  const dependencies = {
+    adminIds: new Set(["1001"]),
+    telegram: async (method) => {
+      if (method === "answerCallbackQuery") {
+        throw new Error("Telegram network unavailable");
+      }
+    },
+    getRequest: async () => request,
+    expireRequest: async () => false,
+    decideRequest: async (_id, outcome) => {
+      decision = outcome;
+      return true;
+    },
+    redactMessages: async () => {},
+    onCallbackAckFailure: () => {
+      ackFailureLogged = true;
+    },
+    now: () => new Date("2029-01-01T00:00:00Z"),
+  };
+
+  await processReviewCallback({
+    id: "failed-ack",
+    from: { id: 1001 },
+    data: `pinreview:wrong:${requestId}`,
+    message: { message_id: 71, chat: { id: 1001 } },
+  }, "primary", dependencies);
+
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(decision, "rejected");
+  assert.equal(ackFailureLogged, true);
 });
 
 test("a stale PIN button on a completed review is removed without changing its decision", async () => {

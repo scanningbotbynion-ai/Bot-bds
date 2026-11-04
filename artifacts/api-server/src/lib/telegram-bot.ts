@@ -386,6 +386,14 @@ async function processReviewCallback(
       { err: error, botId },
       "Telegram callback acknowledgment expired; review update will continue",
     ),
+    onCallbackAckFailure: (error) => logger.warn(
+      { err: error, botId },
+      "Telegram callback acknowledgment failed; review update will continue",
+    ),
+    onStaleMessageCleanupFailure: (error) => logger.warn(
+      { err: error, botId },
+      "Could not clear a stale review message",
+    ),
     getRequest: async (requestId) => {
       const [request] = await db
         .select()
