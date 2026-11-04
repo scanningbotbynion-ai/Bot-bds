@@ -5,6 +5,7 @@ import {
   paymentReviewRequests,
   type TelegramMessagePointer,
 } from "@workspace/db";
+import { hasTelegramBotChanged } from "./telegram-update-cursor";
 import { logger } from "./logger";
 import { generateAccessKey } from "./access-key";
 import {
@@ -74,8 +75,47 @@ type TelegramMessage = {
 };
 
 type TelegramBotIdentity = {
+  id: number;
   username?: string;
 };
+
+async function bindTelegramUpdateCursor(botId: number): Promise<void> {
+  const reset = await db.transaction(async (tx) => {
+    const [state] = await tx
+      .select({
+        primaryBotId: accessKeyState.primaryBotId,
+        updateOffset: accessKeyState.updateOffset,
+      })
+      .from(accessKeyState)
+      .where(eq(accessKeyState.id, 1))
+      .limit(1)
+      .for("update");
+
+    if (!state) {
+      throw new Error("Access-key state is missing from the database.");
+    }
+    if (!hasTelegramBotChanged(state.primaryBotId, botId)) return undefined;
+
+    await tx
+      .update(accessKeyState)
+      .set({
+        primaryBotId: botId,
+        updateOffset: 0,
+        updatedAt: new Date(),
+      })
+      .where(eq(accessKeyState.id, 1));
+    return { previousBotId: state.primaryBotId, previousOffset: state.updateOffset };
+  });
+
+  if (reset) {
+    logger.info({
+      previousBotId: reset.previousBotId,
+      botId,
+      previousOffset: reset.previousOffset,
+      updateOffset: 0,
+    }, "Reset Telegram update cursor for the newly connected bot");
+  }
+}
 
 function getTelegramBotHealth(): TelegramBotHealth {
   return { primary: { ...BOT_POLL_HEALTH.primary } };
@@ -165,17 +205,28 @@ async function initializeTelegramBot(botId: TelegramBotId): Promise<void> {
   while (true) {
     try {
       const identity = await telegram<TelegramBotIdentity>("getMe", {}, botId);
+      if (!Number.isSafeInteger(identity.id) || identity.id <= 0) {
+        throw new Error("Telegram returned an invalid bot identity.");
+      }
+      if (botId === "primary") await bindTelegramUpdateCursor(identity.id);
       logger.info(
-        { botId, username: identity.username },
+        { botId, username: identity.username, telegramUserId: identity.id },
         "Telegram bot token verified",
       );
 
-      await telegram<boolean>(
-        "setMyCommands",
-        { commands: BOT_COMMANDS },
-        botId,
-      );
-      logger.info({ botId }, "Telegram command menu registered");
+      try {
+        await telegram<boolean>(
+          "setMyCommands",
+          { commands: BOT_COMMANDS },
+          botId,
+        );
+        logger.info({ botId }, "Telegram command menu registered");
+      } catch (error) {
+        logger.warn(
+          { err: error, botId },
+          "Could not register Telegram commands; polling will still start.",
+        );
+      }
       return;
     } catch (error) {
       logger.warn(
@@ -627,6 +678,10 @@ export function startTelegramBot(): void {
     return;
   }
 
-  void initializeTelegramBot("primary");
-  void pollTelegram();
+  void initializeTelegramBot("primary")
+    .then(() => pollTelegram())
+    .catch((error) => {
+      BOT_POLL_HEALTH.primary.polling = "paused";
+      logger.error({ err: error, botId: "primary" }, "Telegram initialization stopped before polling");
+    });
 }
