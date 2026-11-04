@@ -23,6 +23,11 @@ import {
 } from "./payment-review-telegram";
 import { getTelegramBotTokens } from "./telegram-config";
 import { createTelegramReplyQueue } from "./telegram-reply-queue";
+import {
+  RetryableTelegramRequestError,
+  telegramRequestTimeoutMs,
+  withCallbackRecovery,
+} from "./telegram-callback-recovery";
 
 type TelegramBotId = "primary" | "secondary";
 
@@ -81,6 +86,26 @@ async function telegram<T>(
   params: Record<string, unknown>,
   botId: TelegramBotId = "primary",
 ): Promise<T> {
+  const startedAt = performance.now();
+  const result = await withCallbackRecovery(
+    method,
+    () => telegramRequest<T>(method, params, botId),
+    () => logger.warn({ botId }, "Retrying Telegram callback acknowledgment after a transient failure"),
+  );
+  if (method === "answerCallbackQuery") {
+    logger.info({
+      botId,
+      durationMs: Math.round(performance.now() - startedAt),
+    }, "Telegram callback acknowledged");
+  }
+  return result;
+}
+
+async function telegramRequest<T>(
+  method: string,
+  params: Record<string, unknown>,
+  botId: TelegramBotId,
+): Promise<T> {
   const token = BOT_TOKENS[botId];
   if (!token) {
     throw new Error(`Telegram ${botId} bot token is not configured.`);
@@ -95,9 +120,7 @@ async function telegram<T>(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(params),
-        signal: AbortSignal.timeout(
-          method === "getUpdates" ? 30_000 : method === "sendMessage" ? 8_000 : 15_000,
-        ),
+        signal: AbortSignal.timeout(telegramRequestTimeoutMs(method)),
       },
     );
   } catch (error) {
@@ -110,14 +133,16 @@ async function telegram<T>(
       failureKind: failure.name === "TimeoutError" ? "timeout" : "network",
       networkCode: failure.cause?.code,
     }, "Telegram transport request failed");
-    throw new Error(`Telegram ${method} request failed before a response.`);
+    throw new RetryableTelegramRequestError(`Telegram ${method} request failed before a response.`);
   }
 
   let data: TelegramResponse<T>;
   try {
     data = (await response.json()) as TelegramResponse<T>;
   } catch {
-    throw new Error(`Telegram ${method} returned an invalid response.`);
+    const message = `Telegram ${method} returned an invalid response.`;
+    if (response.status >= 400 && response.status < 500) throw new Error(message);
+    throw new RetryableTelegramRequestError(message);
   }
 
   if (!response.ok || !data.ok || data.result === undefined) {
@@ -125,9 +150,11 @@ async function telegram<T>(
       token,
       "[redacted]",
     );
-    throw new Error(
-      `Telegram ${method} failed: ${detail}`,
-    );
+    const message = `Telegram ${method} failed: ${detail}`;
+    if (response.status >= 500) {
+      throw new RetryableTelegramRequestError(message);
+    }
+    throw new Error(message);
   }
 
   return data.result;

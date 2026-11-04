@@ -7,7 +7,6 @@ import NotFound from '@/pages/not-found';
 import SignalGenerator from '@/pages/signal-generator';
 import SignalResult from '@/pages/signal-result';
 import { reviewSubmissionError } from '@/lib/review-errors';
-import { APPROVED_ACCESS_PATH, reviewStatusPolling } from '@/lib/review-flow';
 import {
   useCreatePaymentReviewRequest,
   useCreatePinReviewRequest,
@@ -389,20 +388,21 @@ function Login() {
   );
 }
 
-function Countdown() {
+function Countdown({ second = false }: { second?: boolean }) {
   const [, setLocation] = useLocation();
   const [deadline] = useState(() => Date.now() + 30_000);
   const [now, setNow] = useState(() => Date.now());
   const [paymentRequestId, setPaymentRequestId] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null;
+    if (second || typeof window === 'undefined') return null;
     return window.sessionStorage.getItem(PAYMENT_REVIEW_REQUEST_KEY);
   });
   const seconds = Math.max(0, Math.ceil((deadline - now) / 1000));
   const paymentReview = useGetPaymentReviewStatus(paymentRequestId ?? '', {
     query: {
       queryKey: getGetPaymentReviewStatusQueryKey(paymentRequestId ?? ''),
-      ...reviewStatusPolling,
-      enabled: Boolean(paymentRequestId),
+      enabled: !second && Boolean(paymentRequestId),
+      refetchInterval: paymentRequestId ? 500 : false,
+      refetchIntervalInBackground: true,
     },
   });
   useEffect(() => {
@@ -410,6 +410,12 @@ function Countdown() {
     return () => window.clearInterval(timer);
   }, []);
   useEffect(() => {
+    if (second) {
+      if (window.sessionStorage.getItem(BOT_ACCESS_GRANTED_KEY) !== 'accepted') {
+        setLocation('/');
+      }
+      return;
+    }
     if (!paymentRequestId) {
       setLocation(
         window.sessionStorage.getItem(PAYMENT_REVIEW_APPROVED_KEY) === 'approved'
@@ -417,9 +423,9 @@ function Countdown() {
           : '/login',
       );
     }
-  }, [paymentRequestId, setLocation]);
+  }, [second, paymentRequestId, setLocation]);
   useEffect(() => {
-    if (!paymentRequestId || !paymentReview.data || paymentReview.data.status === 'pending') {
+    if (second || !paymentRequestId || !paymentReview.data || paymentReview.data.status === 'pending') {
       return;
     }
 
@@ -434,12 +440,22 @@ function Countdown() {
     window.sessionStorage.removeItem(PAYMENT_REVIEW_APPROVED_KEY);
     window.sessionStorage.setItem(PAYMENT_REVIEW_RESULT_KEY, paymentReview.data.status);
     setLocation('/login');
-  }, [paymentRequestId, paymentReview.data?.status, setLocation]);
-  const elapsed = Math.min(29, 30 - seconds);
+  }, [second, paymentRequestId, paymentReview.data?.status, setLocation]);
+  useEffect(() => {
+    if (second && seconds === 0) {
+      const timeout = window.setTimeout(
+        () => setLocation('/signal-generator'),
+        600,
+      );
+      return () => window.clearTimeout(timeout);
+    }
+    return undefined;
+  }, [seconds, second, setLocation]);
+  const elapsed = Math.min(second ? 30 : 29, 30 - seconds);
   const activeIndex = thresholds.findIndex((threshold) => elapsed < threshold);
   const pill = activeIndex < 0
     ? 'READY'
-    : seconds === 0
+    : !second && seconds === 0
       ? 'PENDING'
       : pillLabels[activeIndex];
   return (
@@ -472,7 +488,8 @@ function Countdown() {
       </section>
       <div className="status-pill"><i />{pill}</div>
       <svg className="floor-rings" viewBox="0 0 390 60" aria-hidden="true"><ellipse cx="195" cy="42" rx="125" ry="20" /><ellipse cx="195" cy="42" rx="100" ry="15" /><ellipse cx="195" cy="42" rx="70" ry="9" /></svg>
-      {paymentRequestId && paymentReview.isError && (
+      {second && seconds === 0 && <div className="countdown-final" role="status">Opening Signal Generator…</div>}
+      {!second && paymentRequestId && paymentReview.isError && (
         <div className="countdown-final status-error" role="status">Connection interrupted. Checking again…</div>
       )}
     </main>
@@ -501,8 +518,9 @@ function Pin() {
   const reviewStatus = useGetPinReviewStatus(requestId ?? '', {
     query: {
       queryKey: getGetPinReviewStatusQueryKey(requestId ?? ''),
-      ...reviewStatusPolling,
       enabled: Boolean(requestId),
+      refetchInterval: requestId ? 500 : false,
+      refetchIntervalInBackground: true,
     },
   });
 
@@ -518,7 +536,7 @@ function Pin() {
       window.sessionStorage.removeItem(PIN_REVIEW_REQUEST_KEY);
       window.sessionStorage.setItem(BOT_ACCESS_GRANTED_KEY, 'accepted');
       setRequestId(null);
-      setLocation(APPROVED_ACCESS_PATH);
+      setLocation('/countdown-2');
       return;
     }
 
@@ -641,25 +659,13 @@ function RequireBotAccess({ children }: { children: ReactNode }) {
   return allowed ? children : null;
 }
 
-function ApprovedAccessRedirect() {
-  const [, setLocation] = useLocation();
-  useEffect(() => {
-    setLocation(
-      window.sessionStorage.getItem(BOT_ACCESS_GRANTED_KEY) === 'accepted'
-        ? APPROVED_ACCESS_PATH
-        : '/',
-    );
-  }, [setLocation]);
-  return null;
-}
-
 function Router() {
   return <RoutedErrorBoundary><Switch>
     <Route path="/" component={Home} />
     <Route path="/login" component={Login} />
     <Route path="/countdown" component={() => <Countdown />} />
     <Route path="/pin" component={Pin} />
-    <Route path="/countdown-2" component={ApprovedAccessRedirect} />
+    <Route path="/countdown-2" component={() => <Countdown second />} />
     <Route path="/test-key" component={TestKey} />
     <Route path="/terms" component={Terms} />
     <Route path="/signal-generator" component={() => <RequireBotAccess><SignalGenerator /></RequireBotAccess>} />

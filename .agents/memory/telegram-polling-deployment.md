@@ -26,3 +26,9 @@ Review buttons can be delivered with the initial notice only after the request e
 **Why:** Removing the separate button-activation request avoids a second Telegram network failure point, but makes early decisions possible while notices are still being delivered. Those late notices must not retain submitted details or actionable stale buttons.
 
 **How to apply:** Preserve atomic, first-decision-wins semantics, include the clicked message in immediate cleanup, and reconcile late deliveries against the saved outcome without blocking the submit response.
+
+Keep the site's 30-second countdown when fixing Telegram Right/Wrong latency.
+
+**Why:** The owner explicitly corrected a change that removed the countdown: their delay complaint concerns the Telegram button's loading indicator, not the website countdown.
+
+**How to apply:** Limit latency fixes to callback receipt, acknowledgment, decision persistence, and associated Telegram work. Do not remove or bypass the website countdown unless separately requested.
