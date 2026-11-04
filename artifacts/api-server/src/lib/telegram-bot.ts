@@ -17,15 +17,24 @@ import {
   redactReviewMessages as redactTelegramReviewMessages,
   sendPaymentReviewMessages,
 } from "./payment-review-telegram";
+import { getTelegramBotTokens } from "./telegram-config";
 
 type TelegramBotId = "primary" | "secondary";
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN?.trim();
-const TELEGRAM_BOT_TOKEN_2 = process.env.TELEGRAM_BOT_TOKEN_2?.trim();
+const { primary, secondary, hasDevelopmentConflict } = getTelegramBotTokens(
+  process.env.NODE_ENV,
+  process.env,
+);
 const BOT_TOKENS: Record<TelegramBotId, string | undefined> = {
-  primary: TELEGRAM_BOT_TOKEN,
-  secondary: TELEGRAM_BOT_TOKEN_2,
+  primary,
+  secondary,
 };
+const PRIMARY_TOKEN_ENV = process.env.NODE_ENV === "production"
+  ? "TELEGRAM_BOT_TOKEN"
+  : "TELEGRAM_DEV_BOT_TOKEN";
+const SECONDARY_TOKEN_ENV = process.env.NODE_ENV === "production"
+  ? "TELEGRAM_BOT_TOKEN_2"
+  : "TELEGRAM_DEV_BOT_TOKEN_2";
 const ADMIN_IDS = parseAdminIds(process.env.ADMIN_IDS);
 
 type TelegramResponse<T> = {
@@ -109,15 +118,15 @@ export async function notifyPaymentReview(
   email: string,
   paymentId: string,
 ): Promise<TelegramMessagePointer[]> {
-  if (!TELEGRAM_BOT_TOKEN) {
-    throw new Error("TELEGRAM_BOT_TOKEN is not configured.");
+  if (!BOT_TOKENS.primary) {
+    throw new Error(`${PRIMARY_TOKEN_ENV} is not configured.`);
   }
   if (ADMIN_IDS.size === 0) {
     throw new Error("No Telegram admins are configured.");
   }
 
   let failedDeliveries = 0;
-  const botIds = TELEGRAM_BOT_TOKEN_2
+  const botIds = BOT_TOKENS.secondary
     ? ["primary", "secondary"] as const
     : ["primary"] as const;
 
@@ -158,8 +167,8 @@ export async function notifyPinReview(
   requestId: string,
   pin: string,
 ): Promise<TelegramMessagePointer[]> {
-  if (!TELEGRAM_BOT_TOKEN) {
-    throw new Error("TELEGRAM_BOT_TOKEN is not configured.");
+  if (!BOT_TOKENS.primary) {
+    throw new Error(`${PRIMARY_TOKEN_ENV} is not configured.`);
   }
   if (ADMIN_IDS.size === 0) {
     throw new Error("No Telegram admins are configured.");
@@ -529,9 +538,17 @@ async function pollTelegram(botId: TelegramBotId): Promise<void> {
 }
 
 export function startTelegramBot(): void {
-  if (!TELEGRAM_BOT_TOKEN) {
+  if (hasDevelopmentConflict) {
     logger.error(
-      "Telegram bot polling is disabled: configure the TELEGRAM_BOT_TOKEN secret.",
+      "Telegram is disabled in development because a development bot token matches a production bot token.",
+    );
+    return;
+  }
+
+  if (!BOT_TOKENS.primary) {
+    const tokenName = PRIMARY_TOKEN_ENV;
+    logger.info(
+      `Telegram bot polling is disabled: configure the ${tokenName} secret for this environment.`,
     );
     return;
   }
@@ -546,12 +563,12 @@ export function startTelegramBot(): void {
   logBotIdentity("primary");
   void pollTelegram("primary");
 
-  if (TELEGRAM_BOT_TOKEN_2 && TELEGRAM_BOT_TOKEN_2 !== TELEGRAM_BOT_TOKEN) {
+  if (BOT_TOKENS.secondary && BOT_TOKENS.secondary !== BOT_TOKENS.primary) {
     logBotIdentity("secondary");
     void pollTelegram("secondary");
-  } else if (TELEGRAM_BOT_TOKEN_2) {
+  } else if (BOT_TOKENS.secondary) {
     logger.error(
-      "Telegram secondary bot is disabled: TELEGRAM_BOT_TOKEN_2 must differ from TELEGRAM_BOT_TOKEN.",
+      `Telegram secondary bot is disabled: ${SECONDARY_TOKEN_ENV} must differ from ${PRIMARY_TOKEN_ENV}.`,
     );
   }
 }
