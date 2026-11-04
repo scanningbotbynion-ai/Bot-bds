@@ -43,11 +43,10 @@ timeoutMs = 20000
 [userenv]
 
 [userenv.shared]
-TELEGRAM_BOT_TOKEN = "9198641561:AAF9wRcl_1R6tdg_uWKfBnoR3h8d06aTDWA"
 ADMIN_IDS = "8913389274"
-TELEGRAM_DEV_BOT_ENABLED = "false"
 
 [userenv.development]
+TELEGRAM_DEV_BOT_ENABLED = "false"
 TELEGRAM_SHARED_API_URL = "https://telegram-access-key-api.replit.app/api"
 
 [nix]
