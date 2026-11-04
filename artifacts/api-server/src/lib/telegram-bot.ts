@@ -363,6 +363,10 @@ async function processReviewCallback(
   await processReviewCallbackWithDependencies(callback, botId, {
     adminIds: ADMIN_IDS,
     telegram,
+    onExpiredCallback: (error) => logger.warn(
+      { err: error, botId },
+      "Telegram callback acknowledgment expired; review update will continue",
+    ),
     getRequest: async (requestId) => {
       const [request] = await db
         .select()

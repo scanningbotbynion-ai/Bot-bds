@@ -10,7 +10,9 @@ import {
   useCreatePaymentReviewRequest,
   useCreatePinReviewRequest,
   useGetPaymentReviewStatus,
+  getGetPaymentReviewStatusQueryKey,
   useGetPinReviewStatus,
+  getGetPinReviewStatusQueryKey,
   useHealthCheck,
   useVerifyKey,
 } from '@workspace/api-client-react';
@@ -22,17 +24,21 @@ import {
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 
 const queryClient = new QueryClient();
+const ACCESS_KEY_VERIFIED_KEY = 'access_key_verified';
 const PIN_REVIEW_CONSENT_KEY = 'pin_review_consent';
+const PIN_REVIEW_REQUEST_KEY = 'pin_review_request';
 const PAYMENT_REVIEW_REQUEST_KEY = 'payment_review_request';
 const PAYMENT_REVIEW_RESULT_KEY = 'payment_review_result';
+const PAYMENT_REVIEW_APPROVED_KEY = 'payment_review_approved';
+const BOT_ACCESS_GRANTED_KEY = 'bot_access_granted';
 const scanLabels = [
-  'Connecting to neural engine…',
-  'Verifying credentials…',
-  'Scanning markets…',
-  'Activating signal feed…',
-  'Generating login token…',
+  'Request received…',
+  'Sending for review…',
+  'Checking request status…',
+  'Preparing access…',
+  'Review still pending…',
 ];
-const pillLabels = ['CONNECTING…', 'VERIFYING…', 'SCANNING MARKETS…', 'ACTIVATING FEED…', 'GENERATING TOKEN…'];
+const pillLabels = ['RECEIVED…', 'SENDING…', 'CHECKING…', 'PROCESSING…', 'REVIEW…'];
 const thresholds = [3, 8, 18, 25, 30];
 
 function Home() {
@@ -55,8 +61,14 @@ function Home() {
       onSuccess: (result) => {
         setPending(false);
         setKey('');
-        if (result.ok) setLocation('/login');
-        else setError(result.error || 'Invalid access key. Please try again.');
+        if (result.ok) {
+          window.sessionStorage.setItem(ACCESS_KEY_VERIFIED_KEY, 'accepted');
+          window.sessionStorage.removeItem(PAYMENT_REVIEW_APPROVED_KEY);
+          window.sessionStorage.removeItem(BOT_ACCESS_GRANTED_KEY);
+          setLocation('/login');
+        } else {
+          setError(result.error || 'Invalid access key. Please try again.');
+        }
       },
       onError: (err) => {
         const e = err as { status?: number; response?: { status?: number } };
@@ -76,7 +88,7 @@ function Home() {
           <span className="brand-divider" />
           <div className="brand-wordmark"><b>CHINESE</b><strong>AUTO BOT</strong></div>
           <ShieldCheck className="secure-mark" size={22} aria-label="Secure" />
-          <button type="button" className="menu-button" aria-label="Menu" onClick={() => setLocation('/test-key')}>
+          <button type="button" className="menu-button" aria-label="Menu" data-testid="button-open-test-key" onClick={() => setLocation('/test-key')}>
             <span /><span /><span />
           </button>
         </header>
@@ -85,11 +97,11 @@ function Home() {
           <img src="/assets/hero.jpg" alt="Armored Chinese Auto Bot trading assistant" className="hero-image" />
           <div className="hero-copy">
             <h1>Chinese<br /><em>Auto Bot</em></h1>
-            <p>AI-Powered Trading<br />Automation</p>
+            <p>Signal Generator<br />Local demo only</p>
             <ul>
-              <li>Smart Analysis <CheckCircle2 /></li>
-              <li>Auto Trading <CheckCircle2 /></li>
-              <li>Faster Execution <CheckCircle2 /></li>
+              <li>20 Demo Markets <CheckCircle2 /></li>
+              <li>No Broker Connected <CheckCircle2 /></li>
+              <li>No Orders Placed <CheckCircle2 /></li>
             </ul>
           </div>
         </section>
@@ -121,13 +133,13 @@ function Home() {
         </section>
 
         <section className="feature-grid" aria-label="Features">
-          <Feature icon={<Brain />} title="AI Analysis" detail="Smarter Decisions" />
-          <Feature icon={<Zap />} title="Auto Execution" detail="Instant Trades" />
-          <Feature icon={<ShieldCheck />} title="High Security" detail="Your Data Safe" />
-          <Feature icon={<ChartNoAxesColumnIncreasing />} title="24/7 Trading" detail="Non-Stop Operations" />
+          <Feature icon={<Brain />} title="Demo signals" detail="Local simulated output" />
+          <Feature icon={<Zap />} title="No broker" detail="No orders are placed" />
+          <Feature icon={<ShieldCheck />} title="Access review" detail="Payment ID review" />
+          <Feature icon={<ChartNoAxesColumnIncreasing />} title="20 markets" detail="Regular and OTC pairs" />
         </section>
         <footer className="access-footer">
-          <a href="https://t.me/Trader_Rihab07" target="_blank" rel="noopener noreferrer"><Headphones />Help &amp; Support</a>
+          <a href="https://t.me/Trader_Rihab07" target="_blank" rel="noopener noreferrer" data-testid="link-help-support"><Headphones />Help &amp; Support</a>
           <i />
           <Link href="/terms" data-testid="link-terms"><FileText />条款与风险披露</Link>
         </footer>
@@ -160,13 +172,13 @@ function Terms() {
     },
     {
       number: '04',
-      title: '人工智能与自动化',
-      text: '信号或自动执行可能出错或延迟，也可能受过时数据、设置、软件故障或异常市场状况影响。自动化并不意味着无需监控交易活动。',
+      title: '本地模拟信号',
+      text: '本应用生成的信号可能不准确或延迟。软件故障、设置错误或异常市场状况也可能影响结果。模拟信号不代表真实市场表现。',
     },
     {
       number: '05',
-      title: '订单执行与市场',
-      text: '波动、价格跳空、流动性不足、订单部分成交或未成交、点差、滑点、经纪商或交易所限制、费用、服务中断以及追加保证金通知都可能影响结果。适用时可能发生强制平仓。',
+      title: '在其他平台进行真实交易',
+      text: '本应用不会提交订单。如果您自行将模拟信号用于其他平台，波动、价格跳空、流动性不足、部分成交或未成交、点差、滑点、平台限制、费用、服务中断和追加保证金都可能造成损失。',
     },
     {
       number: '06',
@@ -201,21 +213,21 @@ function Terms() {
         <section className="terms-intro">
           <div className="terms-kicker"><FileText size={15} /> 请在继续前阅读</div>
           <h1>条款与<em>风险披露</em></h1>
-          <p className="terms-lede">使用自动交易工具前，请仔细了解以下重要风险。</p>
+          <p className="terms-lede">使用本地模拟信号工具前，请仔细了解以下重要风险。</p>
           <div className="terms-notice" role="note" data-testid="notice-general-risk">
             <span className="terms-notice-icon"><AlertTriangle size={20} /></span>
             <p>本页面仅概述一般风险，不构成法律、税务或投资建议，也不构成完整的服务条款。内容可能未涵盖所有风险，亦不一定符合您所在司法管辖区的要求。在公开使用或进行真实资金交易前，请咨询合格的法律顾问。</p>
           </div>
           <div className="terms-notice terms-data-notice" role="note" data-testid="notice-payment-data">
             <span className="terms-notice-icon"><ShieldCheck size={20} /></span>
-            <p>您提交的邮箱和 PASWD 会通过 Telegram 发送给经授权的机器人管理员，用于付款审核。只有在您勾选首页同意框后，本应用签发的六位访问 PIN 才会发送给管理员审核。请勿提交密码、银行卡或银行账户信息，或来自电子邮件、短信或其他服务的验证码。审核完成或请求过期后，本应用会清除提交的付款信息；Telegram 消息会尽可能清除，但 Telegram 可能根据其政策保留副本。</p>
+            <p>此表单中的 PASWD 指付款 ID，而非账户密码。您提交的邮箱和付款 ID 会通过 Telegram 发送给经授权的机器人管理员，用于付款审核。只有在您勾选付款审核表单中的同意框后，本应用签发的六位访问 PIN 才会发送给管理员审核。请勿提交密码、银行卡或银行账户信息，或来自电子邮件、短信或其他服务的验证码。审核完成或请求过期后，本应用会清除提交的付款信息；Telegram 消息会尽可能清除，但 Telegram 可能根据其政策保留副本。</p>
           </div>
         </section>
 
         <div className="terms-body">
           <aside className="terms-side-note">
             <span className="terms-side-index">请仔细阅读</span>
-            <p>交易工具可能提高操作速度，但无法预测市场或消除风险。</p>
+            <p>本应用生成的模拟信号无法预测市场，也不能消除交易风险。</p>
             <span className="terms-side-rule" />
             <span className="terms-side-foot">一般风险摘要</span>
           </aside>
@@ -249,6 +261,9 @@ function Feature({ icon, title, detail }: { icon: ReactNode; title: string; deta
 
 function Login() {
   const [, setLocation] = useLocation();
+  const hasVerifiedAccess =
+    typeof window !== 'undefined' &&
+    window.sessionStorage.getItem(ACCESS_KEY_VERIFIED_KEY) === 'accepted';
   const [email, setEmail] = useState('');
   const [paymentId, setPaymentId] = useState('');
   const [consent, setConsent] = useState(false);
@@ -266,7 +281,17 @@ function Login() {
 
   useEffect(() => {
     window.sessionStorage.removeItem(PIN_REVIEW_CONSENT_KEY);
+    window.sessionStorage.removeItem(PIN_REVIEW_REQUEST_KEY);
   }, []);
+  useEffect(() => {
+    if (!hasVerifiedAccess) {
+      setLocation('/');
+      return;
+    }
+    if (window.sessionStorage.getItem(PAYMENT_REVIEW_REQUEST_KEY)) {
+      setLocation('/countdown');
+    }
+  }, [hasVerifiedAccess, setLocation]);
 
   function submitReview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -275,6 +300,8 @@ function Login() {
     }
 
     setFormError('');
+    window.sessionStorage.removeItem(PAYMENT_REVIEW_APPROVED_KEY);
+    window.sessionStorage.removeItem(BOT_ACCESS_GRANTED_KEY);
     createReview.mutate(
       {
         data: {
@@ -299,7 +326,7 @@ function Login() {
       <div className="login-art" aria-hidden="true"><svg viewBox="0 0 390 728"><polygon points="54,571 90,571 74,590" fill="#1b202d" /><polyline points="0,623 58,604 117,631 176,594 232,620 293,585 352,610 390,590" /></svg></div>
       <header className="login-header"><img src="/assets/logo2.png" alt="Chinese Auto Bot" /><div><b>CHINESE</b><strong>AUTO BOT</strong></div></header>
       <h1>Sign In To Your Account</h1>
-      <p className="login-subtitle">Use your Chinese Auto Bot account to continue</p>
+      <p className="login-subtitle">Use your registered email and Payment ID to continue</p>
       <form className="login-card" onSubmit={submitReview}>
         <label className="floating-field">
           <span>Email Address</span>
@@ -311,10 +338,11 @@ function Login() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             aria-label="Email Address"
+            data-testid="input-payment-email"
           />
         </label>
         <label className="floating-field">
-          <span>PASWD</span>
+            <span>Payment ID (PASWD)</span>
           <input
             type="text"
             autoComplete="off"
@@ -322,7 +350,8 @@ function Login() {
             maxLength={128}
             value={paymentId}
             onChange={(event) => setPaymentId(event.target.value)}
-            aria-label="PASWD"
+            aria-label="Payment ID (PASWD)"
+            data-testid="input-payment-id"
           />
         </label>
         <div className="payment-consent">
@@ -332,6 +361,7 @@ function Login() {
             checked={consent}
             onChange={(event) => setConsent(event.target.checked)}
             required
+            data-testid="checkbox-payment-consent"
           />
           <div>
             <label htmlFor="payment-review-consent">
@@ -343,6 +373,7 @@ function Login() {
         <button
           className="signin-button"
           type="submit"
+          data-testid="button-submit-payment-review"
           disabled={!email.trim() || !paymentId.trim() || !consent || createReview.isPending}
         >
           {createReview.isPending ? 'Sending…' : 'Submit'}
@@ -358,21 +389,40 @@ function Login() {
 
 function Countdown({ second = false }: { second?: boolean }) {
   const [, setLocation] = useLocation();
-  const [seconds, setSeconds] = useState(30);
+  const [deadline] = useState(() => Date.now() + 30_000);
+  const [now, setNow] = useState(() => Date.now());
   const [paymentRequestId, setPaymentRequestId] = useState<string | null>(() => {
     if (second || typeof window === 'undefined') return null;
     return window.sessionStorage.getItem(PAYMENT_REVIEW_REQUEST_KEY);
   });
+  const seconds = Math.max(0, Math.ceil((deadline - now) / 1000));
   const paymentReview = useGetPaymentReviewStatus(paymentRequestId ?? '', {
     query: {
+      queryKey: getGetPaymentReviewStatusQueryKey(paymentRequestId ?? ''),
       enabled: !second && Boolean(paymentRequestId),
       refetchInterval: paymentRequestId ? 500 : false,
+      refetchIntervalInBackground: true,
     },
   });
   useEffect(() => {
-    const timer = window.setInterval(() => setSeconds((value) => Math.max(0, value - 1)), 1000);
+    const timer = window.setInterval(() => setNow(Date.now()), 250);
     return () => window.clearInterval(timer);
   }, []);
+  useEffect(() => {
+    if (second) {
+      if (window.sessionStorage.getItem(BOT_ACCESS_GRANTED_KEY) !== 'accepted') {
+        setLocation('/');
+      }
+      return;
+    }
+    if (!paymentRequestId) {
+      setLocation(
+        window.sessionStorage.getItem(PAYMENT_REVIEW_APPROVED_KEY) === 'approved'
+          ? '/pin'
+          : '/login',
+      );
+    }
+  }, [second, paymentRequestId, setLocation]);
   useEffect(() => {
     if (second || !paymentRequestId || !paymentReview.data || paymentReview.data.status === 'pending') {
       return;
@@ -381,26 +431,32 @@ function Countdown({ second = false }: { second?: boolean }) {
     window.sessionStorage.removeItem(PAYMENT_REVIEW_REQUEST_KEY);
     setPaymentRequestId(null);
     if (paymentReview.data.status === 'approved') {
+      window.sessionStorage.setItem(PAYMENT_REVIEW_APPROVED_KEY, 'approved');
       setLocation('/pin');
       return;
     }
 
+    window.sessionStorage.removeItem(PAYMENT_REVIEW_APPROVED_KEY);
     window.sessionStorage.setItem(PAYMENT_REVIEW_RESULT_KEY, paymentReview.data.status);
     setLocation('/login');
   }, [second, paymentRequestId, paymentReview.data?.status, setLocation]);
   useEffect(() => {
-    if (seconds === 0) {
+    if (second && seconds === 0) {
       const timeout = window.setTimeout(
-        () => setLocation(second ? '/signal-generator' : '/pin'),
+        () => setLocation('/signal-generator'),
         600,
       );
       return () => window.clearTimeout(timeout);
     }
     return undefined;
   }, [seconds, second, setLocation]);
-  const elapsed = 30 - seconds;
+  const elapsed = Math.min(second ? 30 : 29, 30 - seconds);
   const activeIndex = thresholds.findIndex((threshold) => elapsed < threshold);
-  const pill = activeIndex < 0 ? 'READY' : pillLabels[activeIndex];
+  const pill = activeIndex < 0
+    ? 'READY'
+    : !second && seconds === 0
+      ? 'PENDING'
+      : pillLabels[activeIndex];
   return (
     <main className="countdown-screen">
       <div className="count-glow" /><div className="count-dots" />
@@ -431,58 +487,64 @@ function Countdown({ second = false }: { second?: boolean }) {
       </section>
       <div className="status-pill"><i />{pill}</div>
       <svg className="floor-rings" viewBox="0 0 390 60" aria-hidden="true"><ellipse cx="195" cy="42" rx="125" ry="20" /><ellipse cx="195" cy="42" rx="100" ry="15" /><ellipse cx="195" cy="42" rx="70" ry="9" /></svg>
-      {second && seconds === 0 && <div className="countdown-final">Opening Signal Generator…</div>}
+      {second && seconds === 0 && <div className="countdown-final" role="status">Opening Signal Generator…</div>}
+      {!second && paymentRequestId && paymentReview.isError && (
+        <div className="countdown-final status-error" role="status">Connection interrupted. Checking again…</div>
+      )}
     </main>
   );
 }
 
 function Pin() {
   const [, setLocation] = useLocation();
-  const [pin, setPin] = useState('');
-  const [error, setError] = useState('');
-  const [requestId, setRequestId] = useState<string | null>(null);
-  const [reviewStartedAt, setReviewStartedAt] = useState<number | null>(null);
   const hasFirstPageConsent =
     typeof window !== 'undefined' &&
     window.sessionStorage.getItem(PIN_REVIEW_CONSENT_KEY) === 'accepted';
+  const hasPaymentApproval =
+    typeof window !== 'undefined' &&
+    window.sessionStorage.getItem(PAYMENT_REVIEW_APPROVED_KEY) === 'approved';
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState('');
+  const [requestId, setRequestId] = useState<string | null>(() => {
+    if (
+      typeof window === 'undefined' ||
+      window.sessionStorage.getItem(PIN_REVIEW_CONSENT_KEY) !== 'accepted' ||
+      window.sessionStorage.getItem(PAYMENT_REVIEW_APPROVED_KEY) !== 'approved'
+    ) return null;
+    return window.sessionStorage.getItem(PIN_REVIEW_REQUEST_KEY);
+  });
   const createPinReview = useCreatePinReviewRequest();
   const reviewStatus = useGetPinReviewStatus(requestId ?? '', {
     query: {
+      queryKey: getGetPinReviewStatusQueryKey(requestId ?? ''),
       enabled: Boolean(requestId),
-      refetchInterval: (query) => {
-        if (!requestId) return false;
-        if (query.state.data && query.state.data.status !== 'pending') return false;
-
-        const elapsed = reviewStartedAt === null ? 0 : Date.now() - reviewStartedAt;
-        if (elapsed < 10_000) return 500;
-        if (elapsed < 30_000) return 1_000;
-        if (elapsed < 60_000) return 2_000;
-        return 3_000;
-      },
+      refetchInterval: requestId ? 500 : false,
+      refetchIntervalInBackground: true,
     },
   });
 
   useEffect(() => {
-    if (!hasFirstPageConsent) {
+    if (!hasFirstPageConsent || !hasPaymentApproval) {
       setLocation('/login');
     }
-  }, [hasFirstPageConsent, setLocation]);
+  }, [hasFirstPageConsent, hasPaymentApproval, setLocation]);
 
   useEffect(() => {
     if (!requestId || !reviewStatus.data || reviewStatus.data.status === 'pending') return;
     if (reviewStatus.data.status === 'approved') {
+      window.sessionStorage.removeItem(PIN_REVIEW_REQUEST_KEY);
+      window.sessionStorage.setItem(BOT_ACCESS_GRANTED_KEY, 'accepted');
       setRequestId(null);
-      setReviewStartedAt(null);
       setLocation('/countdown-2');
       return;
     }
 
+    window.sessionStorage.removeItem(PIN_REVIEW_REQUEST_KEY);
     setRequestId(null);
-    setReviewStartedAt(null);
     setPin('');
     setError(
       reviewStatus.data.status === 'rejected'
-        ? 'Wrong details. Please try again.'
+        ? 'Wrong PIN. Please try again.'
         : 'Review expired. Please submit your PIN again.',
     );
   }, [requestId, reviewStatus.data?.status, setLocation]);
@@ -505,7 +567,7 @@ function Pin() {
       {
         onSuccess: (result) => {
           setPin('');
-          setReviewStartedAt(Date.now());
+          window.sessionStorage.setItem(PIN_REVIEW_REQUEST_KEY, result.requestId);
           setRequestId(result.requestId);
         },
         onError: (requestError) => {
@@ -522,7 +584,7 @@ function Pin() {
 
   return <main className="pin-screen">
     <h1>Welcome back!</h1>
-    <p className="pin-intro">Please enter the access PIN-code we've just send you</p>
+    <p className="pin-intro">Please enter the access PIN-code we've just sent you</p>
     <form className="pin-review-form" onSubmit={submitPin}>
       <label className={`pin-field ${error ? 'pin-error' : ''}`}>
         <span>Access PIN</span>
@@ -534,6 +596,7 @@ function Pin() {
           autoComplete="off"
           placeholder="Enter 6-digit code…"
           value={pin}
+          data-testid="input-access-pin"
           disabled={Boolean(requestId) || createPinReview.isPending}
           onChange={(event) => {
             setPin(event.target.value.replace(/\D/g, '').slice(0, 6));
@@ -545,19 +608,20 @@ function Pin() {
       {createPinReview.isPending && <p className="pin-review-status" role="status">Sending PIN for review…</p>}
       {requestId && reviewStatus.isError && (
         <p className="pin-review-status status-error" role="status">
-          Connection interrupted. Checking the admin decision again…
+          Connection interrupted. Retrying…
         </p>
       )}
       <button
         className="pin-submit"
         type="submit"
+        data-testid="button-submit-pin-review"
         disabled={Boolean(requestId) || createPinReview.isPending}
       >
-        {requestId ? 'Waiting for review…' : createPinReview.isPending ? 'Sending…' : 'Submit PIN'}
+        {requestId ? 'PIN submitted' : createPinReview.isPending ? 'Sending…' : 'Submit PIN'}
         <span><ChevronRight /></span>
       </button>
     </form>
-    <button className="go-back" type="button" onClick={() => setLocation('/login')}>Go back</button>
+    <button className="go-back" type="button" data-testid="button-pin-go-back" disabled={Boolean(requestId) || createPinReview.isPending} onClick={() => setLocation('/login')}>Go back</button>
     <p className="copyright pin-copyright">© Chinese Auto Bot, 2026. All rights reserved.</p>
   </main>;
 }
@@ -580,11 +644,25 @@ function TestKey() {
       onError: () => setResult('error'),
     });
   }
-  return <main className="test-screen"><section className="test-card"><button className="test-back" type="button" onClick={() => setLocation('/')}>← Chinese Auto Bot</button><div className="test-eyebrow"><LockKeyhole size={16} />TEMPORARY API TOOL</div><h1>Access key check</h1><p>Standalone live check. Only the access key is sent to the verification endpoint.</p>
-    <form onSubmit={submit}><label htmlFor="test-key">Candidate key</label><input id="test-key" data-testid="input-test-key" value={value} maxLength={128} autoComplete="off" onChange={(e) => { setValue(e.target.value); setResult(null); }} placeholder="Enter an access key" /><button type="submit" disabled={!value.trim() || verify.isPending}>{verify.isPending ? 'Checking…' : 'Verify key'}<ArrowRight size={16} /></button></form>
+  return <main className="test-screen"><section className="test-card"><button className="test-back" type="button" data-testid="button-test-key-back" onClick={() => setLocation('/')}>← Chinese Auto Bot</button><div className="test-eyebrow"><LockKeyhole size={16} />TEMPORARY API TOOL</div><h1>Access key check</h1><p>Standalone live check. Only the access key is sent to the verification endpoint.</p>
+    <form onSubmit={submit}><label htmlFor="test-key">Candidate key</label><input id="test-key" data-testid="input-test-key" value={value} maxLength={128} autoComplete="off" onChange={(e) => { setValue(e.target.value); setResult(null); }} placeholder="Enter an access key" /><button type="submit" data-testid="button-verify-test-key" disabled={!value.trim() || verify.isPending}>{verify.isPending ? 'Checking…' : 'Verify key'}<ArrowRight size={16} /></button></form>
     {result && <div className={`test-result ${result}`} role="status">{result === 'accepted' ? 'Key accepted' : result === 'rejected' ? 'Key not accepted' : 'Verification service unavailable'}</div>}
-    <div className="test-service"><span className={online ? 'health-dot online' : 'health-dot'} />{health.isLoading ? 'Checking service…' : online ? `Service status: ${health.data?.status}` : 'Service unavailable'}<button type="button" onClick={() => void health.refetch()} disabled={health.isFetching}>Refresh</button></div>
+    <div className="test-service"><span className={online ? 'health-dot online' : 'health-dot'} />{health.isLoading ? 'Checking service…' : online ? `Service status: ${health.data?.status}` : 'Service unavailable'}<button type="button" data-testid="button-refresh-service-status" onClick={() => void health.refetch()} disabled={health.isFetching}>Refresh</button></div>
   </section></main>;
+}
+
+function RequireBotAccess({ children }: { children: ReactNode }) {
+  const [, setLocation] = useLocation();
+  const [allowed] = useState(() =>
+    typeof window !== 'undefined' &&
+    window.sessionStorage.getItem(BOT_ACCESS_GRANTED_KEY) === 'accepted',
+  );
+
+  useEffect(() => {
+    if (!allowed) setLocation('/');
+  }, [allowed, setLocation]);
+
+  return allowed ? children : null;
 }
 
 function Router() {
@@ -596,8 +674,8 @@ function Router() {
     <Route path="/countdown-2" component={() => <Countdown second />} />
     <Route path="/test-key" component={TestKey} />
     <Route path="/terms" component={Terms} />
-    <Route path="/signal-generator" component={SignalGenerator} />
-    <Route path="/signal-result" component={SignalResult} />
+    <Route path="/signal-generator" component={() => <RequireBotAccess><SignalGenerator /></RequireBotAccess>} />
+    <Route path="/signal-result" component={() => <RequireBotAccess><SignalResult /></RequireBotAccess>} />
     <Route component={NotFound} />
   </Switch></RoutedErrorBoundary>;
 }

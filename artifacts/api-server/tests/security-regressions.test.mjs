@@ -346,6 +346,16 @@ for (const { botId, action, outcome, otherBotId, otherAction } of [
     const edits = telegramCalls.filter(({ method }) =>
       method === "editMessageText"
     );
+    const winnerAckIndex = telegramCalls.findIndex(({ method, params }) =>
+      method === "answerCallbackQuery" &&
+      params.callback_query_id === "winner"
+    );
+    const firstEditIndex = telegramCalls.findIndex(({ method }) =>
+      method === "editMessageText"
+    );
+    assert.ok(winnerAckIndex >= 0);
+    assert.ok(firstEditIndex >= 0);
+    assert.ok(winnerAckIndex < firstEditIndex);
     assert.deepEqual(edits.map(({ botId: routedBotId }) => routedBotId).sort(), [
       "primary",
       "secondary",
@@ -373,6 +383,162 @@ for (const { botId, action, outcome, otherBotId, otherAction } of [
     ));
   });
 }
+
+for (const { action, outcome } of [
+  { action: "right", outcome: "approved" },
+  { action: "wrong", outcome: "rejected" },
+]) {
+  test(`PIN review ${action} action is acknowledged before Telegram cleanup`, async () => {
+    const requestId = "abcdefab-1234-4234-8234-abcdefabcdef";
+    const request = {
+      id: requestId,
+      reviewType: "pin",
+      status: "pending",
+      expiresAt: new Date("2030-01-01T00:00:00Z"),
+      pin: "123456",
+      telegramMessages: [
+        { chatId: 1001, messageId: 61, botId: "primary" },
+        { chatId: 1001, messageId: 62, botId: "secondary" },
+      ],
+    };
+    const telegramCalls = [];
+    const telegram = async (method, params, botId) => {
+      telegramCalls.push({ method, params, botId });
+    };
+    const dependencies = {
+      adminIds: new Set(["1001"]),
+      telegram,
+      getRequest: async () => request,
+      expireRequest: async () => false,
+      decideRequest: async (_id, decision) => {
+        if (request.status !== "pending") return false;
+        request.status = decision;
+        request.pin = null;
+        return true;
+      },
+      redactMessages: (id, decision, messages, type) =>
+        redactReviewMessages(id, decision, messages, type, telegram),
+      now: () => new Date("2029-01-01T00:00:00Z"),
+    };
+
+    await processReviewCallback({
+      id: "pin-winner",
+      from: { id: 1001 },
+      data: `pinreview:${action}:${requestId}`,
+      message: { message_id: 62, chat: { id: 1001 } },
+    }, "secondary", dependencies);
+
+    assert.equal(request.status, outcome);
+    assert.equal(request.pin, null);
+    const ackIndex = telegramCalls.findIndex(({ method, params }) =>
+      method === "answerCallbackQuery" &&
+      params.callback_query_id === "pin-winner"
+    );
+    const firstEditIndex = telegramCalls.findIndex(({ method }) =>
+      method === "editMessageText"
+    );
+    assert.ok(ackIndex >= 0);
+    assert.ok(firstEditIndex >= 0);
+    assert.ok(ackIndex < firstEditIndex);
+    assert.ok(telegramCalls.filter(({ method }) => method === "editMessageText")
+      .every(({ params }) => !params.text.includes("123456")));
+  });
+}
+
+test("an expired Telegram PIN callback acknowledgment does not block the review decision", async () => {
+  const requestId = "fedcbafe-1234-4234-8234-fedcbafedcba";
+  const request = {
+    id: requestId,
+    reviewType: "pin",
+    status: "pending",
+    expiresAt: new Date("2030-01-01T00:00:00Z"),
+    pin: "123456",
+    telegramMessages: [{ chatId: 1001, messageId: 71, botId: "primary" }],
+  };
+  let decision = null;
+  let cleanupRan = false;
+  let expiredCallbackLogged = false;
+  const dependencies = {
+    adminIds: new Set(["1001"]),
+    telegram: async (method) => {
+      if (method === "answerCallbackQuery") {
+        throw new Error(
+          "Telegram answerCallbackQuery failed: Bad Request: query is too old and response timeout expired",
+        );
+      }
+    },
+    getRequest: async () => request,
+    expireRequest: async () => false,
+    decideRequest: async (_id, outcome) => {
+      decision = outcome;
+      return true;
+    },
+    redactMessages: async () => {
+      cleanupRan = true;
+    },
+    onExpiredCallback: () => {
+      expiredCallbackLogged = true;
+    },
+    now: () => new Date("2029-01-01T00:00:00Z"),
+  };
+
+  await processReviewCallback({
+    id: "expired-ack",
+    from: { id: 1001 },
+      data: `pinreview:right:${requestId}`,
+    message: { message_id: 71, chat: { id: 1001 } },
+  }, "primary", dependencies);
+
+  assert.equal(decision, "approved");
+  assert.equal(cleanupRan, true);
+  assert.equal(expiredCallbackLogged, true);
+});
+
+test("a stale PIN button on a completed review is removed without changing its decision", async () => {
+  const requestId = "acbdacbd-1234-4234-8234-acbdacbdabcd";
+  const request = {
+    id: requestId,
+    reviewType: "pin",
+    status: "approved",
+    expiresAt: new Date("2030-01-01T00:00:00Z"),
+    pin: null,
+    telegramMessages: [{ chatId: 1001, messageId: 81, botId: "primary" }],
+  };
+  let changedDecision = false;
+  let redactedOutcome = null;
+  let redactedMessages = [];
+  const dependencies = {
+    adminIds: new Set(["1001"]),
+    telegram: async (method) => {
+      if (method === "answerCallbackQuery") {
+        throw new Error(
+          "Telegram answerCallbackQuery failed: Bad Request: query is too old",
+        );
+      }
+    },
+    getRequest: async () => request,
+    expireRequest: async () => false,
+    decideRequest: async () => {
+      changedDecision = true;
+      return true;
+    },
+    redactMessages: async (_id, outcome, messages) => {
+      redactedOutcome = outcome;
+      redactedMessages = messages;
+    },
+  };
+
+  await processReviewCallback({
+    id: "stale-pin-button",
+    from: { id: 1001 },
+    data: `pinreview:wrong:${requestId}`,
+    message: { message_id: 82, chat: { id: 1001 } },
+  }, "primary", dependencies);
+
+  assert.equal(changedDecision, false);
+  assert.equal(redactedOutcome, "approved");
+  assert.deepEqual(redactedMessages.map(({ messageId }) => messageId).sort(), [81, 82]);
+});
 
 test("legacy primary-only message pointers redact through the primary bot", async () => {
   const calls = [];

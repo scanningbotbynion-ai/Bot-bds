@@ -88,6 +88,13 @@ type ReviewRequest = {
   telegramMessages: TelegramMessagePointer[];
 };
 
+function isExpiredCallbackQueryError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /query is too old|response timeout expired|query ID is invalid/i.test(
+    message,
+  );
+}
+
 export async function processReviewCallback<TRequest extends ReviewRequest>(
   callback: NonNullable<TelegramUpdate["callback_query"]>,
   botId: ReviewBotId,
@@ -107,6 +114,7 @@ export async function processReviewCallback<TRequest extends ReviewRequest>(
       messages: TelegramMessagePointer[],
       reviewType: "payment" | "pin",
     ) => Promise<void>;
+    onExpiredCallback?: (error: unknown) => void;
     now?: () => Date;
   },
 ): Promise<void> {
@@ -114,11 +122,33 @@ export async function processReviewCallback<TRequest extends ReviewRequest>(
     text: string,
     showAlert = false,
   ): Promise<void> => {
-    await dependencies.telegram("answerCallbackQuery", {
-      callback_query_id: callback.id,
-      text,
-      ...(showAlert ? { show_alert: true } : {}),
-    }, botId);
+    try {
+      await dependencies.telegram("answerCallbackQuery", {
+        callback_query_id: callback.id,
+        text,
+        ...(showAlert ? { show_alert: true } : {}),
+      }, botId);
+    } catch (error) {
+      if (!isExpiredCallbackQueryError(error)) throw error;
+      dependencies.onExpiredCallback?.(error);
+    }
+  };
+  const answerBeforeFollowup = async (
+    text: string,
+    showAlert: boolean,
+    followup: () => Promise<unknown>,
+  ): Promise<void> => {
+    let answerFailed = false;
+    let answerError: unknown;
+    try {
+      await answer(text, showAlert);
+    } catch (error) {
+      answerFailed = true;
+      answerError = error;
+    }
+
+    await followup();
+    if (answerFailed) throw answerError;
   };
 
   const senderId = callback.from?.id;
@@ -144,20 +174,6 @@ export async function processReviewCallback<TRequest extends ReviewRequest>(
     return;
   }
 
-  const now = (dependencies.now ?? (() => new Date()))();
-  if (request.status === "pending" && request.expiresAt <= now) {
-    await dependencies.expireRequest(request, now);
-    await answer("This request has expired.", true);
-    return;
-  }
-
-  const decided = request.status === "pending" &&
-    await dependencies.decideRequest(requestId, outcome, now);
-  if (!decided) {
-    await answer("This request was already reviewed.", true);
-    return;
-  }
-
   const clickedMessage = callback.message?.chat?.id !== undefined &&
       callback.message.message_id !== undefined
     ? [{
@@ -166,11 +182,65 @@ export async function processReviewCallback<TRequest extends ReviewRequest>(
         botId,
       }]
     : [];
-  await dependencies.redactMessages(
-    requestId,
-    outcome,
-    [...request.telegramMessages, ...clickedMessage],
-    reviewType,
+  const now = (dependencies.now ?? (() => new Date()))();
+  if (request.status === "pending" && request.expiresAt <= now) {
+    await answerBeforeFollowup(
+      "This request has expired.",
+      true,
+      () => dependencies.expireRequest(request, now),
+    );
+    return;
+  }
+
+  const decided = request.status === "pending" &&
+    await dependencies.decideRequest(requestId, outcome, now);
+  if (!decided) {
+    const latestRequest = request.status === "pending"
+      ? await dependencies.getRequest(requestId)
+      : request;
+    if (
+      latestRequest?.status === "pending" &&
+      latestRequest.expiresAt <= now
+    ) {
+      await answerBeforeFollowup(
+        "This request has expired.",
+        true,
+        () => dependencies.expireRequest(latestRequest, now),
+      );
+      return;
+    }
+
+    const completedOutcome = latestRequest?.status === "approved" ||
+        latestRequest?.status === "rejected" ||
+        latestRequest?.status === "expired"
+      ? latestRequest.status
+      : undefined;
+    if (latestRequest && completedOutcome) {
+      await answerBeforeFollowup(
+        "This request was already reviewed.",
+        true,
+        () => dependencies.redactMessages(
+          requestId,
+          completedOutcome,
+          [...latestRequest.telegramMessages, ...clickedMessage],
+          reviewType,
+        ),
+      );
+      return;
+    }
+
+    await answer("This request was already reviewed.", true);
+    return;
+  }
+
+  await answerBeforeFollowup(
+    outcome === "approved" ? "Marked Right." : "Marked Wrong.",
+    false,
+    () => dependencies.redactMessages(
+      requestId,
+      outcome,
+      [...request.telegramMessages, ...clickedMessage],
+      reviewType,
+    ),
   );
-  await answer(outcome === "approved" ? "Marked Right." : "Marked Wrong.");
 }

@@ -1,5 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
+import { Link } from 'wouter';
 
 export default function NotFound() {
   return (
@@ -14,8 +15,15 @@ export default function NotFound() {
           </div>
 
           <p className="mt-4 text-sm text-gray-600">
-            Did you forget to add the page to the router?
+            This page could not be found.
           </p>
+          <Link
+            href="/"
+            data-testid="link-not-found-home"
+            className="mt-5 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+          >
+            Return to access page
+          </Link>
         </CardContent>
       </Card>
     </div>

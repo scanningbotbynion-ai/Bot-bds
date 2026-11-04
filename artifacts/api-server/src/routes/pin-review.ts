@@ -113,6 +113,7 @@ router.post("/pin-review", async (req, res): Promise<void> => {
 });
 
 router.get("/pin-review/:requestId", async (req, res): Promise<void> => {
+  res.setHeader("Cache-Control", "no-store");
   const parsed = GetPinReviewStatusParams.safeParse(req.params);
   if (!parsed.success) {
     res.status(400).json({ error: "invalid_request_id" });
