@@ -7,6 +7,7 @@ A Replit-hosted API that verifies access keys and lets approved Telegram admins 
 - `pnpm --filter @workspace/api-server run dev` — run the API server through its managed workflow
 - `pnpm --filter @workspace/access-key-checker run dev` — run the Chinese Auto Bot web preview
 - `pnpm run typecheck` — full typecheck across all packages
+- `pnpm test:review-integration` — isolated App → Preview proxy → synthetic upstream Right/Wrong regression check; no live Telegram or database needed
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — apply schema changes to the development database
