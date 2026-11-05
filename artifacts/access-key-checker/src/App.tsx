@@ -382,7 +382,7 @@ function Login() {
         </button>
       </form>
       <div className="flag-rule" />
-      <p className="risk-copy">Risk warning: trading involves significant risk. Signals are local simulations; no live market feed or broker is connected.</p>
+      <p className="risk-copy">Risk warning: trading involves significant risk. Signals are local simulations; no live OTC market feed or broker is connected.</p>
       <p className="copyright">© Chinese Auto Bot, 2026. All rights reserved.</p>
     </main>
   );
