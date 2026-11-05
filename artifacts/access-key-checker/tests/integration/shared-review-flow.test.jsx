@@ -111,7 +111,7 @@ async function waitFor(assertion) {
 
 async function submitPayment() {
   render(<App />);
-  expect(screen.getByLabelText("付款编号").getAttribute("placeholder")).toBe("请输入付款编号");
+  expect(screen.getByLabelText("Payment ID").getAttribute("placeholder")).toBeNull();
   fireEvent.change(screen.getByTestId("input-payment-email"), { target: { value: "synthetic@example.invalid" } });
   fireEvent.change(screen.getByTestId("input-payment-id"), { target: { value: "synthetic-payment" } });
   fireEvent.click(screen.getByTestId("checkbox-payment-consent"));
