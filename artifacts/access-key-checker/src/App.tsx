@@ -343,7 +343,7 @@ function Login() {
           />
         </label>
         <label className="floating-field">
-          <span>Passwrd</span>
+          <span>Password</span>
           <input
             type="text"
             autoComplete="off"
