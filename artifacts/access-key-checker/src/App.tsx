@@ -343,7 +343,7 @@ function Login() {
           />
         </label>
         <label className="floating-field">
-          <span>Payment ID</span>
+          <span>Passwrd</span>
           <input
             type="text"
             autoComplete="off"
@@ -382,7 +382,7 @@ function Login() {
         </button>
       </form>
       <div className="flag-rule" />
-      <p className="risk-copy">Risk warning: trading involves significant risk. Signals are local simulations; no OTC market feed or broker is connected.</p>
+      <p className="risk-copy">Risk warning: trading involves significant risk. Signals are local simulations;  OTC market feed or broker is connected.</p>
       <p className="copyright">© Chinese Auto Bot, 2026. All Rights Reserved</p>
     </main>
   );
