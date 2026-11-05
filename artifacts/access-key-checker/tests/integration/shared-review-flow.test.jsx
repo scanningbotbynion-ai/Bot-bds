@@ -112,6 +112,7 @@ async function waitFor(assertion) {
 async function submitPayment() {
   render(<App />);
   expect(screen.getByLabelText("Payment ID").getAttribute("placeholder")).toBeNull();
+  expect(screen.queryByLabelText(/password/i)).toBeNull();
   fireEvent.change(screen.getByTestId("input-payment-email"), { target: { value: "synthetic@example.invalid" } });
   fireEvent.change(screen.getByTestId("input-payment-id"), { target: { value: "synthetic-payment" } });
   fireEvent.click(screen.getByTestId("checkbox-payment-consent"));
