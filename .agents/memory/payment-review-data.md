@@ -1,7 +1,7 @@
 ---
 name: Payment review data
-description: The paid-access review flow uses a registered email and Payment ID, not login credentials.
----
+description: The paid-access review flow uses a registered email and Passwrd, not login credentials.
+------
 
 For Chinese Auto Bot, use one primary Telegram bot for all new payment and app-issued PIN notices, Right/Wrong decisions, and access-key commands. Keep access PINs out of the database and redact them after decision or expiry. The old secondary token is for redacting previously sent duplicate review messages only; never poll it or use it for new notifications. Collect the registered email and Payment ID only after explicit consent. Never request or forward passwords or verification codes from email, SMS, or another service.
 
@@ -9,7 +9,7 @@ For Chinese Auto Bot, use one primary Telegram bot for all new payment and app-i
 
 **How to apply:** Send new notices and process callbacks through the primary bot only. Keep legacy bot identity on old message pointers so resolved reviews can redact both copies. Preserve consent for the app-issued PIN review; never forward third-party login or verification codes or passwords.
 
-The owner uses “PASWD” to mean payment ID, not a password.
+The owner uses ”Passwrd it mean payment ID, not a password.
 
 **Why:** The owner explicitly clarified this meaning, but subsequently requested removing the Payment ID clarification. That bare label would make the Telegram-forwarded field look like a password request.
 
