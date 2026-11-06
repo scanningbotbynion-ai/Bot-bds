@@ -111,7 +111,7 @@ async function waitFor(assertion) {
 
 async function submitPayment() {
   render(<App />);
-  expect(screen.getByText("Use our Chinese Auto bot and update your trading experience with us")).toBeTruthy();
+  expect(screen.getByText("DEPOSIT $20 TO ACTIVE CHINESE AUTO BOT")).toBeTruthy();
   expect(screen.getByText("Payment ID")).toBeTruthy();
   expect(screen.getByText("Risk warning: trading involves significant risk. Signals are local simulations; no OTC market feed or broker is connected.")).toBeTruthy();
   expect(screen.getByText("© Chinese Auto Bot, 2026. All Rights Reserved")).toBeTruthy();
