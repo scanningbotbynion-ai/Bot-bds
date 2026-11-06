@@ -165,6 +165,7 @@
 .login-header strong { color:#ff2d4e; letter-spacing:4.6px; }
 .login-screen h1 { position:relative; margin:50px 12px 0; text-align:center; font:700 clamp(25px,6.5vw,30px)/38px Outfit,sans-serif; }
 .login-subtitle { position:relative; margin:10px 15px 0; text-align:center; color:#b3b8c8; font-size:clamp(14px,3.5vw,16px); line-height:21px; }
+.login-subtitle .deposit-price { color:#22c55e; }
 .login-card { position:relative; display:flex; flex-direction:column; gap:33px; margin:42px 18px 0; padding:37px 28px 32px; border-radius:16px; background:#2b3141; box-shadow:0 24px 60px rgba(0,0,0,.25); }
 .login-card:before { position:absolute; top:0; left:0; right:0; height:4px; content:""; background:linear-gradient(90deg,#de2810 70%,#ffde00 70%); border-radius:16px 16px 0 0; }
 .floating-field { height:68px; position:relative; display:flex; align-items:center; border:1px solid #565c6c; border-radius:14px; }
