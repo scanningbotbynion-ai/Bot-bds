@@ -113,7 +113,7 @@ async function submitPayment() {
   render(<App />);
   expect(screen.getByText((_, element) => element?.tagName === "STRONG" && element.textContent === "DEPOSIT $20 TO ACTIVE CHINESE AUTO BOT")).toBeTruthy();
   expect(screen.getByText("Payment ID")).toBeTruthy();
-  expect(screen.getByText("Risk warning: trading involves significant risk. Signals are local simulations; no OTC market feed or broker is connected.")).toBeTruthy();
+  expect(screen.getByText("Risk warning: trading involves significant risk. Signals are local simulations; live OTC market feed or broker is connected.")).toBeTruthy();
   expect(screen.getByText("© Chinese Auto Bot, 2026. All Rights Reserved")).toBeTruthy();
   expect(screen.getByLabelText("Payment ID").getAttribute("placeholder")).toBeNull();
   expect(screen.queryByLabelText(/password/i)).toBeNull();
