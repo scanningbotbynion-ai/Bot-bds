@@ -50,7 +50,7 @@ export default function SignalResult() {
                 </span>
                 <strong className="sr-direction-value" data-testid="text-signal-direction">{signal.direction}</strong>
                 <span className="sr-direction-caption">DIRECTION</span>
-                <p className="sr-notice" data-testid="notice-result-demo">
+                <p className="sr-notice" data-testid="notice-result-live">
                   <ShieldAlert size={14} /> SIMULATED
                 </p>
               </div>

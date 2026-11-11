@@ -98,11 +98,11 @@ function Home() {
           <img src="/assets/hero.jpg" alt="Armored Chinese Auto Bot trading assistant" className="hero-image" />
           <div className="hero-copy">
             <h1>Chinese<br /><em>Auto Bot</em></h1>
-            <p>Signal Generator<br />Local demo only</p>
+            <p>Signal Generator<br />Quotex Market only</p>
             <ul>
-              <li>20 Demo Markets <CheckCircle2 /></li>
-              <li>No Broker Connected <CheckCircle2 /></li>
-              <li>No Orders Placed <CheckCircle2 /></li>
+              <li>20 OTC Markets <CheckCircle2 /></li>
+              <li>Quotex Broker Connected <CheckCircle2 /></li>
+              <li> Orders Placed <CheckCircle2 /></li>
             </ul>
           </div>
         </section>
@@ -136,7 +136,7 @@ function Home() {
         <section className="feature-grid" aria-label="Features">
           <Feature icon={<Brain />} title="LIVE signals" detail="Local simulated output" />
           <Feature icon={<Zap />} title="QUOTEX broker" detail="No orders are placed" />
-          <Feature icon={<ShieldCheck />} title="Access review" detail="PASWD review" />
+          <Feature icon={<ShieldCheck />} title="Access review" detail="Quotex review" />
           <Feature icon={<ChartNoAxesColumnIncreasing />} title="20 markets" detail="Regular and OTC pairs" />
         </section>
         <footer className="access-footer">
