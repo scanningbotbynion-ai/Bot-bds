@@ -134,8 +134,8 @@ function Home() {
         </section>
 
         <section className="feature-grid" aria-label="Features">
-          <Feature icon={<Brain />} title="Demo signals" detail="Local simulated output" />
-          <Feature icon={<Zap />} title="No broker" detail="No orders are placed" />
+          <Feature icon={<Brain />} title="LIVE signals" detail="Local simulated output" />
+          <Feature icon={<Zap />} title="QUOTEX broker" detail="No orders are placed" />
           <Feature icon={<ShieldCheck />} title="Access review" detail="PASWD review" />
           <Feature icon={<ChartNoAxesColumnIncreasing />} title="20 markets" detail="Regular and OTC pairs" />
         </section>
